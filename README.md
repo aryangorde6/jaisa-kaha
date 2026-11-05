@@ -93,7 +93,7 @@ Every arrow between people and agents goes through Switch, which checks the addr
 
 ## What it measured (`make ledger`)
 
-Every tape goes through two prompts on four models. All are non-Anthropic models, served in Mumbai: Qwen3 235B, Mistral Large 3, Gemma 3 27B and DeepSeek V3.2. Both prompts are committed with their SHA-256 before the first real recording, so neither could be tuned to the result:
+Every tape goes through two prompts on four models, all on Amazon Bedrock in Mumbai: Qwen3 235B, Mistral Large 3, Gemma 3 27B and DeepSeek V3.2. Both prompts are committed with their SHA-256 before the first real recording, so neither could be tuned to the result:
 
 - `prompts/baseline-v1.txt`: an ordinary "turn this into a recipe card" request;
 - `prompts/lekhak-v1.txt`: Lekhak's own prompt, scored by Pothi's checker.
