@@ -67,15 +67,20 @@ def probe(audio: bytes) -> float:
 
 
 def words(transcript: dict) -> list:
-    """Transcribe's output JSON -> Words. Punctuation items are dropped."""
+    """Transcribe's output JSON -> Words. Punctuation items are dropped.
+
+    A custom-vocabulary phrase comes back as one hyphenated token ("पाव-किलो",
+    seen live Thu 5 Nov). It is split into its words, each at the token's start,
+    so Pothi's lexicon sees "पाव" (a number) and "किलो" (a unit)."""
     out = []
     for item in transcript.get("results", {}).get("items", []):
         if item.get("type") != "pronunciation":
             continue
         alts = item.get("alternatives") or [{}]
-        w = str(alts[0].get("content", "")).strip()
-        if w:
-            out.append(Word(len(out), w, round(float(item.get("start_time", 0)), 2)))
+        t = round(float(item.get("start_time", 0)), 2)
+        for w in str(alts[0].get("content", "")).strip().split("-"):
+            if w.strip():
+                out.append(Word(len(out), w.strip(), t))
     return out
 
 

@@ -3,25 +3,32 @@
 python -m jaisa.ledger run      # every tape × prompt × model, once; saved runs are never redone
 python -m jaisa.ledger report   # counts -> ledger.md (public), evidence -> data/ledger/evidence.md (private)
 
-Inputs are Tape's local copies (data/tapes/tape-N.txt: the dish name, then the
-tape) and Pothi's pages (data/pages/). Two prompts, both frozen by hash:
+Inputs are Tape's local copies (data/tapes/<room>/tape-N.txt: the dish name,
+then the tape) and Pothi's pages (data/pages/<room>/), from ONE room only:
+JAISA_LEDGER_ROOM, the family room. Tests in #dev and the S8 takes sit under
+another room's folder and are never counted. A saved run is tied to the exact
+words it was made from (their SHA-256), so a tape-1 in a new room never reuses
+another room's tape-1. Two prompts, both frozen by hash:
 - baseline-v1: an ordinary "make a recipe card" request. For each amount Dadi
   gave by feel, a line naming that ingredient with a number in it counts as
   "turned into a number". The line is kept as evidence, for a person to check.
 - lekhak-v1: Lekhak's own prompt. Pothi's checker scores it, as in the room.
 """
 
+import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
 from . import lekhak
 from .check import check
-from .tape import from_doc
+from .tape import from_doc, to_doc
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
+ROOM = os.environ.get("JAISA_LEDGER_ROOM", "")
 MODELS = [
     "qwen.qwen3-235b-a22b-2507-v1:0",
     "mistral.mistral-large-3-675b-instruct",
@@ -33,27 +40,40 @@ PROMPTS = ["baseline-v1", "lekhak-v1"]
 _NUMBER = re.compile(r"\d|[½¼¾⅓⅔⅛]|\b(one|two|three|four|five|six|seven|eight|nine|ten|half|quarter|dozen)\b", re.I)
 
 
-def tapes():
-    for path in sorted((DATA / "tapes").glob("tape-*.txt")):
+def room_or_exit(room=None) -> str:
+    room = ROOM if room is None else room
+    if not room:
+        raise SystemExit("set JAISA_LEDGER_ROOM in deploy/agents.env to the family room's id; #dev never counts")
+    return room
+
+
+def tapes(room=None):
+    """Tape's copies from the ledger room only, in tape order."""
+    folder = DATA / "tapes" / room_or_exit(room)
+    for path in sorted(folder.glob("tape-*.txt"), key=lambda p: (len(p.stem), p.stem)):
         dish, _, doc = path.read_text().partition("\n")
         yield path.stem, dish, from_doc(doc)
 
 
-def run_path(tape, prompt, model):
-    return DATA / "ledger" / "runs" / f"{tape}__{prompt}__{model.replace(':', '-')}.json"
+def words_sha(words) -> str:
+    return hashlib.sha256(to_doc(words).encode()).hexdigest()
+
+
+def run_path(tape, prompt, model, words):
+    return DATA / "ledger" / "runs" / f"{tape}-{words_sha(words)[:12]}__{prompt}__{model.replace(':', '-')}.json"
 
 
 def run():
     for tape, dish, words in tapes():
         for prompt in PROMPTS:
             for model in MODELS:
-                path = run_path(tape, prompt, model)
+                path = run_path(tape, prompt, model, words)
                 if path.exists():
                     continue
                 raw = lekhak.converse(lekhak.prompt(prompt, words), model)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps({
-                    "tape": tape, "prompt": prompt, "prompt_sha256": lekhak.prompt_hash(prompt), "model": model, "raw": raw,
+                    "tape": tape, "tape_sha256": words_sha(words), "prompt": prompt, "prompt_sha256": lekhak.prompt_hash(prompt), "model": model, "raw": raw,
                 }, ensure_ascii=False))
                 print(f"{tape} {prompt} {model}: {len(raw)} chars")
 
@@ -85,7 +105,7 @@ def invented(raw: str, names) -> list:
 
 def judge(tape, words):
     """Pothi's check of Lekhak's own run on Qwen: the reference for which amounts were by feel."""
-    path = run_path(tape, "lekhak-v1", MODELS[0])
+    path = run_path(tape, "lekhak-v1", MODELS[0], words)
     if not path.exists():
         return None
     return check(words, lekhak.parse(json.loads(path.read_text())["raw"]))
@@ -101,7 +121,10 @@ def page_numbers_unquoted(page: str) -> list:
 
 
 def report():
-    public, private = ["# Ledger", "", "Counts only. Every run is saved with its prompt's SHA-256; transcripts stay private.", ""], ["# Ledger evidence (private)", ""]
+    room = room_or_exit()
+    public = ["# Ledger", "", "Counts only. Every run is saved with its prompt's SHA-256 and its tape's; transcripts stay private.",
+              f"Tapes from the family room only (`{room[:8]}…`). Tests in #dev and the S8 takes are never counted.", ""]
+    private = ["# Ledger evidence (private)", ""]
     totals = {"by_feel": 0, "amounts": 0, "invented": {m: 0 for m in MODELS}, "struck": {m: 0 for m in MODELS}}
     for tape, dish, words in tapes():
         ref = judge(tape, words)
@@ -115,8 +138,8 @@ def report():
                    "| Model | Plain prompt: by-feel amounts turned into numbers | Lekhak prompt: said / gap / struck / missed |", "|---|---|---|"]
         private += [f"## {tape} · {dish}", ""]
         for model in MODELS:
-            base = run_path(tape, "baseline-v1", model)
-            careful = run_path(tape, "lekhak-v1", model)
+            base = run_path(tape, "baseline-v1", model, words)
+            careful = run_path(tape, "lekhak-v1", model, words)
             cell_b = cell_c = "not run"
             if base.exists():
                 raw = json.loads(base.read_text())["raw"]
@@ -132,7 +155,7 @@ def report():
                 cell_c = f"{n['said']} / {n['gap']} / {n['struck']} / {len(r.missed)}"
             public.append(f"| {model} | {cell_b} | {cell_c} |")
         public.append("")
-    pages = sorted((DATA / "pages").glob("page-*.md"))
+    pages = sorted((DATA / "pages" / room).glob("page-*.md"))
     unquoted = {p.stem: page_numbers_unquoted(p.read_text()) for p in pages}
     public += ["## Pages", "", f"{len(pages)} pages written by Pothi. Numbers on them that are neither Dadi's quote nor Mom's: **{sum(len(v) for v in unquoted.values())}**.", ""]
     public += ["## Totals", "", f"{totals['by_feel']} of {totals['amounts']} amounts had no measured amount on the tape.", ""]

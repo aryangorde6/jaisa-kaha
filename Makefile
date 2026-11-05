@@ -2,7 +2,7 @@ COMPOSE = docker compose -f deploy/standalone-docker-compose.yml --env-file depl
 PY ?= python3
 AGENTS_ENV = set -a; . deploy/agents.env; set +a;
 
-.PHONY: env up down ps logs test register tape lekhak pothi s8 security check ledger doctor
+.PHONY: env up down ps logs test register senders smoke ask tape lekhak pothi s8 security check ledger doctor
 
 env:            ## fresh secrets in deploy/.env (asks for the admin password)
 	deploy/init-env.sh
@@ -32,11 +32,20 @@ doctor:         ## what's still missing before the agents can go live (read-only
 	PY=$(PY) deploy/doctor.sh
 
 ledger:         ## every tape × prompt × model (paid, once each), then ledger.md
-	$(PY) -m jaisa.ledger run
-	$(PY) -m jaisa.ledger report
+	$(AGENTS_ENV) $(PY) -m jaisa.ledger run
+	$(AGENTS_ENV) $(PY) -m jaisa.ledger report
 
 register:       ## make register NAME=Tape|Lekhak|Pothi (asks for the registration key)
 	$(PY) -m jaisa.register $(NAME)
+
+senders:        ## the agents' Switch sender ids, for deploy/agents.env (read-only)
+	deploy/senders.sh
+
+smoke:          ## live: as Tape (stop make tape first), send a TEST transcript to the real Lekhak and check its draft
+	$(AGENTS_ENV) $(PY) -m jaisa.probe smoke
+
+ask:            ## live: make ask AS=Lekhak TO=pothi SAY='ghee 1 cup' (stop that agent first); prints Switch's verdict
+	$(AGENTS_ENV) $(PY) -m jaisa.probe ask $(AS) $(TO) $(SAY)
 
 tape lekhak pothi:  ## run one agent in this terminal (Ctrl-C stops it)
 	$(AGENTS_ENV) $(PY) -m jaisa.agents $(shell echo $@ | sed 's/./\U&/')

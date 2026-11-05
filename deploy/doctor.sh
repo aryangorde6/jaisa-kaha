@@ -22,6 +22,10 @@ if [ -f deploy/agents.env ]; then
     step "JAISA_BUCKET reachable" "[ -n \"${JAISA_BUCKET:-}\" ] && AWS_PROFILE=hackathon AWS_REGION=ap-south-1 aws s3api head-bucket --bucket \"$JAISA_BUCKET\""
     step "JAISA_ARYAN_SENDER set" "[ -n \"${JAISA_ARYAN_SENDER:-}\" ]" "Tape logs it the first time you write"
     step "JAISA_MOM_SENDER set" "[ -n \"${JAISA_MOM_SENDER:-}\" ]" "Pothi logs it the first time Mom writes"
+    step "JAISA_TAPE_SENDER set" "[ -n \"${JAISA_TAPE_SENDER:-}\" ]" "make senders"
+    step "JAISA_LEKHAK_SENDER set" "[ -n \"${JAISA_LEKHAK_SENDER:-}\" ]" "make senders"
+    step "JAISA_POTHI_SENDER set" "[ -n \"${JAISA_POTHI_SENDER:-}\" ]" "make senders"
+    step "JAISA_LEDGER_ROOM set" "[ -n \"${JAISA_LEDGER_ROOM:-}\" ]" "the family room's id, never #dev's"
     if [ -n "${JAISA_VOCABULARY:-}" ]; then
         step "vocabulary $JAISA_VOCABULARY READY" "[ \"\$(AWS_PROFILE=hackathon AWS_REGION=ap-south-1 aws transcribe get-vocabulary --vocabulary-name $JAISA_VOCABULARY --query VocabularyState --output text)\" = READY ]"
     fi

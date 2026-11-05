@@ -14,12 +14,14 @@ import json
 import logging
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from jaisa import agents
+from jaisa.switch import SWITCH_NAME
 from tests.test_pothi import DRAFT, TAPE
 
 ROOM = "room-1"
@@ -31,9 +33,16 @@ OGG = _OGG.read_bytes()
 DEVANAGARI = re.compile("[\u0900-\u097f]")
 
 
+# Each agent's Switch sender id, as `make senders` prints them.
+SENDERS = {name: f"@switch-agent-{name.lower()}:localhost" for name in IDS}
+
+
 def frame(name, kind, body, sender="", attachments=(), addressed=True):
+    # Like Switch's live events: no sender_kind for a person or an agent (only
+    # the platform gets one, message_events.py). An agent shows by its sender.
     payload = {
-        "addressed": addressed, "sender": sender or f"@{name}", "sender_name": name, "sender_kind": kind,
+        "addressed": addressed, "sender": sender or (SENDERS[name] if kind == "agent" else f"@{name}"),
+        "sender_name": name, "sender_kind": None,
         "message_id": "m", "body": body, "timestamp": 0, "attachments": list(attachments),
     }
     return {"event": "message", "id": 1, "data": {"type": "message", "room_id": ROOM, "payload": payload}}
@@ -48,11 +57,12 @@ class Room:
 
 class FakeAgent:
     room = None
+    mom_name = None  # Mom's name in the room, when it differs from JAISA_MOM_NAME
 
     def __init__(self, name):
         self.name, self.id = name, IDS[name]
 
-    async def op(self, op, **body):
+    async def op(self, op, /, **body):  # the real signature
         r = self.room
         if op == "connect_to_room":
             return {}
@@ -73,11 +83,17 @@ class FakeAgent:
             r.posts.append((self.name, body["body"]))
             return {}
         if op == "send_targeted_message":
+            # Like Switch: targets are looked up by exact participant name, and
+            # agents' names are lowercase (agent_core.py send_targeted_message).
+            by_switch_name = {v: k for k, v in SWITCH_NAME.items()}
+            for t in body["target_names"]:
+                if t not in by_switch_name and t != (self.mom_name or agents.MOM_NAME):
+                    raise ValueError(f"Targets not in room: {t}")
             text = " ".join(f"@{t}" for t in body["target_names"]) + " " + body["body"]
             r.posts.append((self.name, text))
             for t in body["target_names"]:
-                if t in r.inbox:
-                    r.inbox[t].append(frame(self.name, "agent", text))
+                if t in by_switch_name:
+                    r.inbox[by_switch_name[t]].append(frame(self.name, "agent", text))
             return {}
         raise AssertionError(op)
 
@@ -95,13 +111,14 @@ class FakeAgent:
 class Chain(unittest.TestCase):
     def setUp(self):
         self.room = FakeAgent.room = Room()
-        tmp = Path(tempfile.mkdtemp())
+        tmp = self.tmp = Path(tempfile.mkdtemp())
         self.patches = [
             mock.patch.object(agents, "Agent", FakeAgent),
             mock.patch.object(agents, "agent_ids", lambda: IDS),
             mock.patch.object(agents, "ROOM", ROOM),
             mock.patch.object(agents, "ARYAN", "@aryan:discord"),
             mock.patch.object(agents, "MOM", "@mom:discord"),
+            mock.patch.dict(agents.AGENT_SENDERS, SENDERS),
             mock.patch.object(agents, "DATA", tmp),
             mock.patch.object(agents, "STATE", tmp / "pothi.json"),
             mock.patch.object(agents.tapelib, "transcribe", lambda audio, name: TAPE),
@@ -127,7 +144,7 @@ class Chain(unittest.TestCase):
         self.run_agent("Lekhak")
         self.assertEqual(json.loads(self.doc("draft-1")["content"]), DRAFT)
         self.run_agent("Tape")
-        self.assertEqual(self.room.posts[-1], ("Tape", "@Pothi draft ready: draft-1"))
+        self.assertEqual(self.room.posts[-1], ("Tape", "@pothi draft ready: draft-1"))
         self.run_agent("Pothi")
         self.assertEqual(self.room.posts[-1], ("Pothi", "@Mom तूप?"))
         # each run restarts Pothi, so this also checks that its state survives a restart
@@ -141,6 +158,10 @@ class Chain(unittest.TestCase):
         self.assertTrue(page["description"].startswith("बेसन लाडू"))
         self.to("Pothi", frame("Mom", "user", "@Pothi हो", sender="@mom:discord"))
         self.assertEqual([d["name"] for d in self.room.docs].count("page-1"), 1)
+        # the local copies for make ledger sit in this room's folder, nowhere else
+        self.assertTrue((self.tmp / "tapes" / ROOM / "tape-1.txt").exists())
+        self.assertTrue((self.tmp / "pages" / ROOM / "page-1.md").exists())
+        self.assertEqual(sorted(p.name for p in (self.tmp / "tapes").iterdir()), [ROOM])
 
     def test_tape_ignores_a_stranger(self):
         self.to("Tape", frame("someone", "user", "@Tape लाडू", sender="@someone:discord", attachments=[VOICE]))
@@ -167,6 +188,17 @@ class Chain(unittest.TestCase):
                 frame("Lekhak", "agent", "@Pothi तूप एक कप"),
                 frame("Mom", "user", "@Pothi तूप एक कप", sender="@not-mom:discord"))
         self.assertEqual(self.room.posts, before)
+
+    def test_pothi_still_asks_when_moms_room_name_is_wrong(self):
+        # In the room Mom is her Discord username; JAISA_MOM_NAME may not match.
+        with mock.patch.object(FakeAgent, "mom_name", "mummy123"):
+            self.to("Tape", frame("aryan", "user", "@Tape बेसन लाडू", sender="@aryan:discord", attachments=[VOICE]))
+            self.run_agent("Lekhak")
+            self.run_agent("Tape")
+            self.run_agent("Pothi")
+        pothi = [body for who, body in self.room.posts if who == "Pothi"]
+        self.assertTrue(any("?" in body for body in pothi), pothi)  # the gap question still went out
+        self.assertFalse(any(body.startswith("@") for body in pothi), pothi)
 
 
 if __name__ == "__main__":
@@ -212,6 +244,29 @@ class Security(Chain):
         self.to("Pothi", frame("Mom", "user", "@Pothi हो", sender="@mom:discord"))
         self.assertIsNotNone(self.doc("page-1"))
 
+    def test_5_an_agent_named_lekhak_is_not_lekhak(self):
+        # Live events carry no sender kind and display names are free text:
+        # only Lekhak's own sender id counts as Lekhak.
+        posts = self.ask_tape(
+            frame("Lekhak", "agent", "@Tape draft ready: draft-1", sender="@switch-agent-stranger:localhost"),
+            frame("Lekhak", "user", "@Tape draft ready: draft-1", sender="@someone:discord"),
+        )
+        self.assertNotIn(agents.NOT_LEKHAKS, posts)  # the hand-off never even ran
+        self.assertEqual(self.room.inbox["Pothi"], [])
+
+    def test_5_an_agent_named_tape_cannot_feed_pothi(self):
+        self.reach_pakka()
+        before = list(self.room.posts)
+        self.to("Pothi", frame("Tape", "agent", "@Pothi relayed by aryan: तूप एक कप", sender="@switch-agent-stranger:localhost"))
+        self.assertEqual(self.room.posts, before)
+
+    def test_agents_refuse_to_start_without_the_sender_ids_they_need(self):
+        for name, var in (("Tape", "JAISA_LEKHAK_SENDER"), ("Lekhak", "JAISA_TAPE_SENDER"), ("Pothi", "JAISA_TAPE_SENDER")):
+            with mock.patch.dict(agents.AGENT_SENDERS, {k: "" for k in IDS}), mock.patch.object(sys, "argv", ["agents", name]):
+                with self.assertRaises(SystemExit) as e:
+                    agents.main()
+            self.assertIn(var, str(e.exception))
+
     # 4 uploads
     def test_4_bad_uploads_get_one_fixed_line(self):
         cases = [
@@ -244,7 +299,7 @@ class Security(Chain):
     def test_6_seventh_handoff_in_a_row_is_dropped(self):
         self.room.docs.append({"id": "d", "name": "draft-1", "description": "", "content": "{}", "created_by_agent_id": "id-lekhak"})
         posts = self.ask_tape(*[frame("Lekhak", "agent", "@Tape draft ready: draft-1") for _ in range(7)])
-        self.assertEqual(posts.count("@Pothi draft ready: draft-1"), 6)
+        self.assertEqual(posts.count("@pothi draft ready: draft-1"), 6)
         self.assertEqual(posts[-1], agents.TOO_MANY)
 
     def test_6_daily_cap_holds_across_restarts(self):
@@ -289,6 +344,8 @@ class Security(Chain):
         with self.assertLogs("jaisa", level="INFO") as logs:
             self.reach_pakka()
             self.to("Pothi", frame("aryan", "user", "@Pothi हो", sender="@aryan:discord"))
+        # Every frame gets a line (kind, addressed, sender), and none holds text.
+        self.assertTrue(any("Pothi: frame message addressed=True kind=None from @aryan:discord" in line for line in logs.output))
         for line in logs.output:
             self.assertIsNone(DEVANAGARI.search(line), line)
             self.assertNotIn("Bearer", line)

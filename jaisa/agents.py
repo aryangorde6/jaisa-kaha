@@ -1,9 +1,9 @@
 """The three agents as processes: python -m jaisa.agents Tape|Lekhak|Pothi
 
 Each one acts only in JAISA_ROOM (a Switch room id) and checks who's talking
-before it acts, on top of Switch's addressing rules. Agents are told apart by
-sender_kind "agent" plus their name; people by their Switch sender id. Logs
-carry event kinds, sender ids and sizes, never message text or transcripts.
+before it acts, on top of Switch's addressing rules. Everyone, agent or person,
+is told apart by their Switch sender id (JAISA_*_SENDER). Logs carry event
+kinds, sender ids and sizes, never message text or transcripts.
 """
 
 import asyncio
@@ -17,12 +17,23 @@ from pathlib import Path
 
 from . import budget, lekhak, tape as tapelib
 from .pothi import Book
-from .switch import Agent, agent_ids
+from .switch import SWITCH_NAME, Agent, agent_ids
 
 ROOM = os.environ.get("JAISA_ROOM", "")
 ARYAN = os.environ.get("JAISA_ARYAN_SENDER", "")
 MOM = os.environ.get("JAISA_MOM_SENDER", "")
 MOM_NAME = os.environ.get("JAISA_MOM_NAME", "Mom")
+# Agents are told apart by sender id too. In a live event Switch sets
+# sender_kind only for the platform itself (message_events.py); an agent's
+# message carries none, so its sender, @switch-agent-…:localhost, is what marks
+# it. `make senders` prints these from Switch.
+AGENT_SENDERS = {
+    "Tape": os.environ.get("JAISA_TAPE_SENDER", ""),
+    "Lekhak": os.environ.get("JAISA_LEKHAK_SENDER", ""),
+    "Pothi": os.environ.get("JAISA_POTHI_SENDER", ""),
+}
+# Whose messages each agent acts on, so it can refuse to start without them.
+NEEDS = {"Tape": ("Lekhak",), "Lekhak": ("Tape",), "Pothi": ("Tape",)}
 DATA = Path(__file__).resolve().parent.parent / "data"
 log = logging.getLogger("jaisa")
 
@@ -50,12 +61,25 @@ def said(p) -> str:
     return " ".join(w for w in str(p.get("body", "")).split() if not w.startswith(("@", "<@")))
 
 
+def is_agent(p) -> bool:
+    sender = str(p.get("sender", ""))
+    return (
+        p.get("sender_kind") == "agent"
+        or sender.startswith("@switch-agent-")
+        or (bool(sender) and sender in AGENT_SENDERS.values())
+    )
+
+
 def from_agent(p, name) -> bool:
-    return p.get("sender_kind") == "agent" and p.get("sender_name") == name
+    """Whether our agent `name` sent this, by its Switch sender id. Never by
+    name: display names are free text. Who may address whom is Switch's rule,
+    and document creators are checked by agent id on top of this."""
+    sender_id = AGENT_SENDERS.get(name, "")
+    return bool(sender_id) and p.get("sender") == sender_id
 
 
 def from_person(p, sender_id, who) -> bool:
-    if p.get("sender_kind") == "agent":
+    if is_agent(p):
         return False
     if sender_id and p.get("sender") == sender_id:
         return True
@@ -93,8 +117,19 @@ def connector(me):
     return on_open
 
 
+def frame_line(name, frame) -> str:
+    """One log line per frame: what kind it is and who sent it, never the text.
+    It's how we can show that a message Switch refused never reached us."""
+    data = frame.get("data") if isinstance(frame, dict) else None
+    p = data.get("payload") if isinstance(data, dict) else None
+    if not isinstance(p, dict):
+        return f"{name}: frame {frame.get('event') if isinstance(frame, dict) else '?'}"
+    return f"{name}: frame {frame.get('event')} addressed={bool(p.get('addressed'))} kind={p.get('sender_kind')} from {p.get('sender')}"
+
+
 async def serve(me, filter, on_open, handle):
     async for frame in me.events(filter, on_open=on_open):
+        log.info(frame_line(me.name, frame))
         try:
             await handle(frame)
         except Exception:
@@ -122,7 +157,7 @@ async def run_tape():
         p = message(frame)
         if not p:
             return
-        if p.get("sender_kind") == "agent":
+        if is_agent(p):
             if p.get("addressed") and from_agent(p, "Lekhak"):
                 if handoffs.allow():
                     await tape_handoff(me, ids, said(p))
@@ -140,7 +175,7 @@ async def run_tape():
         if "://" in body or "www." in body:
             await me.op("post_message", body=NO_LINKS)
         elif body.startswith("relay "):
-            await me.op("send_targeted_message", body=f"relayed by aryan: {body[6:].strip()}", target_names=["Pothi"])
+            await me.op("send_targeted_message", body=f"relayed by aryan: {body[6:].strip()}", target_names=[SWITCH_NAME["Pothi"]])
         elif last_audio:
             att, last_audio = last_audio, None
             await tape_transcribe(me, att, dish=body[:60] or "recipe")
@@ -175,8 +210,10 @@ async def tape_transcribe(me, att, dish):
         content=tapelib.to_doc(words),
     )
     log.info("Tape: %s, %d words, %s", name, len(words), tapelib.mmss(words[-1].t if words else 0))
-    keep(f"tapes/{name}.txt", f"{dish}\n{tapelib.to_doc(words)}")  # for make ledger
-    await me.op("send_targeted_message", body=f"{name} {dish}", target_names=["Lekhak"])
+    # for make ledger, one folder per room: it counts the family room only, so a
+    # test voice note in #dev never reaches it, and tape numbers restart per room
+    keep(f"tapes/{ROOM}/{name}.txt", f"{dish}\n{tapelib.to_doc(words)}")
+    await me.op("send_targeted_message", body=f"{name} {dish}", target_names=[SWITCH_NAME["Lekhak"]])
 
 
 async def tape_handoff(me, ids, body):
@@ -186,7 +223,7 @@ async def tape_handoff(me, ids, body):
     if not doc or doc.get("created_by_agent_id") != ids["Lekhak"]:
         await me.op("post_message", body=NOT_LEKHAKS)
         return
-    await me.op("send_targeted_message", body=f"draft ready: {m.group(1)}", target_names=["Pothi"])
+    await me.op("send_targeted_message", body=f"draft ready: {m.group(1)}", target_names=[SWITCH_NAME["Pothi"]])
 
 
 # --- Lekhak ----------------------------------------------------------------
@@ -231,7 +268,7 @@ async def run_lekhak():
                 instructions="JSON. Every quantity is a word-index citation into the tape; Pothi checks each one.",
                 content=content,
             )
-        await me.op("send_targeted_message", body=f"draft ready: {name}", target_names=["Tape"])
+        await me.op("send_targeted_message", body=f"draft ready: {name}", target_names=[SWITCH_NAME["Tape"]])
 
     await serve(me, "addressed", connector(me), handle)
 
@@ -264,7 +301,13 @@ def save(n, book, written):
 async def send(me, msgs):
     for m in msgs:
         if m.startswith("@Mom "):
-            await me.op("send_targeted_message", body=m[5:], target_names=[MOM_NAME])
+            try:
+                await me.op("send_targeted_message", body=m[5:], target_names=[MOM_NAME])
+            except Exception:
+                # Mom's room name is her Discord username (JAISA_MOM_NAME). If
+                # it's wrong, the question still reaches the room, unpinged.
+                log.warning("Pothi: couldn't address %r (JAISA_MOM_NAME); posted without the ping", MOM_NAME)
+                await me.op("post_message", body=m[5:])
         else:
             await me.op("post_message", body=m)
 
@@ -316,7 +359,7 @@ async def run_pothi():
                 content=book.page,
             )
             written = True
-            keep(f"pages/page-{n}.md", book.page)  # for make ledger
+            keep(f"pages/{ROOM}/page-{n}.md", book.page)  # for make ledger, per room as tapes are
         if book:
             save(n, book, written)
 
@@ -328,9 +371,13 @@ def main():
     logging.getLogger("httpx").setLevel(logging.WARNING)
     if not ROOM:
         raise SystemExit("set JAISA_ROOM to the Switch room id")
-    run = {"Tape": run_tape, "Lekhak": run_lekhak, "Pothi": run_pothi}.get(sys.argv[1] if len(sys.argv) > 1 else "")
+    name = sys.argv[1] if len(sys.argv) > 1 else ""
+    run = {"Tape": run_tape, "Lekhak": run_lekhak, "Pothi": run_pothi}.get(name)
     if not run:
         raise SystemExit("usage: python -m jaisa.agents Tape|Lekhak|Pothi")
+    missing = [f"JAISA_{other.upper()}_SENDER" for other in NEEDS[name] if not AGENT_SENDERS[other]]
+    if missing:
+        raise SystemExit(f"{name} acts on messages from {', '.join(NEEDS[name])}: set {', '.join(missing)} (make senders prints it)")
     asyncio.run(run())
 
 

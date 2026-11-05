@@ -29,6 +29,12 @@ log = logging.getLogger("switch")
 # the standard library alone.
 
 
+# Switch's own agent names must be lowercase (agent_core.py: _VALID_NAME_RE).
+# People see the display name, and an @mention matches either case
+# (clients/mentions.py), but send_targeted_message looks names up exactly.
+SWITCH_NAME = {"Tape": "tape", "Lekhak": "lekhak", "Pothi": "pothi"}
+
+
 def register(name: str, description: str, registration_key: str) -> dict:
     import httpx
 
@@ -36,7 +42,8 @@ def register(name: str, description: str, registration_key: str) -> dict:
         f"{API}/agents",
         headers={"Authorization": f"Bearer {registration_key}"},
         json={
-            "name": name,
+            "name": SWITCH_NAME[name],
+            "display_name": name,
             "description": description,
             "connector_type": "custom",
             "integration_profile": {
@@ -55,8 +62,12 @@ def register(name: str, description: str, registration_key: str) -> dict:
     agent = resp.json()
     KEYS.mkdir(mode=0o700, exist_ok=True)
     path = KEYS / f"{name}.json"
-    path.write_text(json.dumps({"id": agent["id"], "api_key": agent["api_key"]}))
-    os.chmod(path, 0o600)
+    # Created with mode 600 from the start, so the key is never readable by
+    # anyone else, even for a moment.
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(json.dumps({"id": agent["id"], "api_key": agent["api_key"]}))
+    os.chmod(path, 0o600)  # also tightens a file left over from an older run
     ids = KEYS / "ids.json"
     known = json.loads(ids.read_text()) if ids.exists() else {}
     ids.write_text(json.dumps({**known, name: agent["id"]}, indent=1))
@@ -83,10 +94,12 @@ class Agent:
             timeout=30,
         )
 
-    async def op(self, name: str, **body) -> dict:
-        resp = await self.http.post(f"/agents/{self.id}/ops/{name}", json=body)
+    async def op(self, operation: str, /, **body) -> dict:
+        # Positional-only, because operations take their own `name` argument
+        # (create_room_document(name=…)).
+        resp = await self.http.post(f"/agents/{self.id}/ops/{operation}", json=body)
         if resp.status_code >= 400:
-            log.warning("%s %s: HTTP %s", self.name, name, resp.status_code)
+            log.warning("%s %s: HTTP %s", self.name, operation, resp.status_code)
             resp.raise_for_status()
         return resp.json().get("result") if resp.content else None
 

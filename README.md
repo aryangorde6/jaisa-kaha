@@ -16,7 +16,7 @@ Track 02, Personal or Creative Workflow · Flip the Switch hackathon, Nov 2026.
 
 | Member | What it is | Owner in Switch | Who may address it (Switch's rule) |
 |---|---|---|---|
-| **Tape** | Code + AWS Transcribe (Marathi, `mr-IN`) | `aryan` | "Me and my agents": Aryan, and Lekhak for the hand-back |
+| **Tape** | Code + AWS Transcribe (Marathi, `mr-IN`) | `aryan` | Aryan's Discord account, and Lekhak for the hand-back |
 | **Lekhak** ("writer") | An LLM on Amazon Bedrock (Qwen3 235B, in Mumbai) | `aryan` | Tape only |
 | **Pothi** ("the book") | Deterministic code, no model | **`mom`** | **Mom and Tape. Nobody else: not Lekhak, not me** |
 | Mom | A person, on her own Discord account | `mom` (her password, her key, her rule) | — |
@@ -45,10 +45,10 @@ Request → hand-off → work → review → human approval → result.
 |---|---|---|
 | Agents with different owners in one room | Pothi is Mom's in Switch's records, and the Gateway shows it | live (spike S3) |
 | An addressing rule set by the agent's owner, enforced by the server | Mom's rule decides who can speak to Pothi. I get 403 trying to change it; so does Pothi itself | live (spike S3) |
-| **The server writes the refusal**, under the agent's name. The agent's code is never asked | The refusals in the video are Switch's, not ours | source (`addressing.py:64`); *event room: pending* |
-| With `filter=addressed`, a refused message never reaches the agent | Pothi's inbox is empty at the moment of a refusal | *pending* |
+| **The server writes the refusal**, under the agent's name. The agent's code is never asked | The refusals in the video are Switch's, not ours | source (`addressing.py:64`); live in the event room (Lekhak refusing me in `#dev`, Thu 5 Nov) |
+| With `filter=addressed`, a refused message never reaches the agent | Pothi's inbox is empty at the moment of a refusal | live: Lekhak logs every frame it gets and logged nothing for my refused `@lekhak hi`, while Tape (`filter=all`) saw it as un-addressed room talk |
 | Only the agent that created a room document can change it | Lekhak can't rewrite Pothi's page; Pothi can't rewrite the tape | source (`resource/service.py:1093`) |
-| Documents record their creator (`created_by_agent_id`) | Tape and Pothi refuse a draft Lekhak didn't make | source; tested |
+| Documents record their creator (`created_by_agent_id`) | Tape and Pothi refuse a draft Lekhak didn't make | live: Switch posts "Lekhak created room document draft-N" under Lekhak's name, and the record carries Lekhak's id; tested |
 
 ### What Switch enforces, what our code enforces, and what neither does
 
@@ -67,6 +67,8 @@ Every tape goes through two prompts on four models. All are non-Anthropic models
 - `prompts/lekhak-v1.txt`: Lekhak's own prompt, scored by Pothi's checker.
 
 `ledger.md` holds the counts. The lines behind each count stay private, because they're my family's words.
+
+It counts the family room's tapes only (`JAISA_LEDGER_ROOM`). Test voice notes in `#dev` are kept in another folder and never reach it, and each saved run is tied to the SHA-256 of the words it was made from (`tests/test_ledger.py`, class `OneRoom`).
 
 *Pending: Dadi's real recordings (Thu–Fri).*
 
@@ -91,7 +93,7 @@ Qwen also turned *पाव किलो* (a quarter kilo) into "1 kg". With Lek
 make check
 ```
 
-That runs 57 tests, then the pre-push scan:
+That runs 70 tests, then the pre-push scan:
 - Pothi's checker and the page;
 - the whole chain in a fake Switch room: voice note → tape → draft → review → Mom's fill → `हो` → page;
 - a test for each security check below.
@@ -106,17 +108,18 @@ Needs Docker, an AWS account with Transcribe and Bedrock in `ap-south-1`, a Disc
 2. In the Gateway (http://localhost:3200):
    - register your Discord bot under Apps (Server Members and Message Content intents);
    - create the users `mom` and `aryan`.
-3. Signed in as `aryan`, make a registration key. `make register NAME=Tape`, then `make register NAME=Lekhak`.
-4. **Mom**, signed in as `mom`, makes her own key. She runs `make register NAME=Pothi` and types it. Then, on Pothi's page, she sets the rule: owner + agents [Tape].
-5. Copy `deploy/agents.env.example` to `deploy/agents.env`. Fill in the room id, the S3 bucket and the two sender ids, which Tape and Pothi log the first time each person writes.
+3. Signed in as `aryan`, make a registration key. `make register NAME=Tape`, then `make register NAME=Lekhak`. On each agent's page, set its rule: Tape admits your Discord account and lekhak; Lekhak admits only tape.
+4. **Mom**, signed in as `mom`, makes her own key. She runs `make register NAME=Pothi` and types it. Then, on Pothi's page, she sets the rule: restricted, users [her own Discord account], agents [tape].
+5. Copy `deploy/agents.env.example` to `deploy/agents.env`. Fill in the room id and the S3 bucket. `make senders` prints the agents' Switch sender ids to paste in, and lists the people Switch has seen: pick your own sender id, Mom's, and Mom's username (Pothi addresses her by it). Agents are told apart by sender id because Switch's live events don't mark a sender as an agent.
 6. `make tape`, `make lekhak`, `make pothi`, each in its own terminal.
 7. In the channel: `!invite-agent @Tape`, `@Lekhak`, `@Pothi`. Then post a voice note and `@Tape <dish>`.
+8. To check the live room without a recording: stop `make tape`, then `make smoke`. Acting as Tape, it sends a test transcript (from the tests, not Dadi) to the real Lekhak and checks the draft that comes back: Lekhak's sender id, the draft's creator in Switch's records, and Pothi's checker. `make ask AS=Lekhak TO=pothi SAY='ghee 1 cup'` (with Lekhak stopped) should show Switch refusing the model: Pothi declines in the room, and the call reports `not_permitted` (from Switch's source, `agent_core.py:2144`; *pending a live run, since Pothi is registered in Mom's session*).
 
 ## Security
 
 The 20-point web checklist, mapped onto this build:
 
-- **Who can act on what (BOLA):** document names are matched strictly, and their creator is checked in Switch's records. People are matched by Switch sender id, never by display name.
+- **Who can act on what (BOLA):** document names are matched strictly, and their creator is checked in Switch's records. People and agents are matched by Switch sender id, never by display name.
 - **Uploads:** audio only, checked by ffprobe on the bytes. At most 20 MB and 10 minutes; stored under a name Tape makes.
 - **Links:** Tape never fetches a URL from a message (SSRF). Media comes only through Switch's media route.
 - **Rate limits:** daily caps on paid calls, kept on disk. At most 6 hand-offs in 10 minutes.

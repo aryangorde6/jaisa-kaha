@@ -102,6 +102,14 @@ class Tape(unittest.TestCase):
     def test_words_drop_punctuation(self):
         self.assertEqual(words(self.TRANSCRIBE), [Word(0, "तूप", 1.25), Word(1, "अंदाजाने", 1.6)])
 
+    def test_vocabulary_phrases_split_into_words(self):
+        # Transcribe returns a custom-vocabulary phrase as one hyphenated token.
+        from jaisa.lexicon import kind
+        item = {"type": "pronunciation", "start_time": "2.5", "alternatives": [{"content": "पाव-किलो"}]}
+        got = words({"results": {"items": [item]}})
+        self.assertEqual(got, [Word(0, "पाव", 2.5), Word(1, "किलो", 2.5)])
+        self.assertEqual([kind(w.w) for w in got], ["number", "unit"])
+
     def test_doc_round_trip(self):
         self.assertEqual(from_doc(to_doc(TAPE)), TAPE)
 
