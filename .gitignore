@@ -1,0 +1,15 @@
+# secrets and machine state
+.env
+deploy/.env
+deploy/agents.env
+keys/
+*.key
+# Switch's own Compose file is fetched by digest, not vendored (make compose)
+deploy/standalone-docker-compose.yml
+# family audio and transcripts never go in the repo
+audio/
+data/
+# python
+.venv/
+__pycache__/
+*.pyc

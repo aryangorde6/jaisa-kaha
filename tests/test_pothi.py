@@ -1,0 +1,125 @@
+import unittest
+
+from jaisa.check import Word
+from jaisa.pothi import Book, esc
+from jaisa.tape import from_doc, media_format, mmss, to_doc, words
+
+SAID = "बेसन पाव किलो घ्यायचं तूप अंदाजाने घालायचं साखर दोन वाट्या आणि वेलची चिमूटभर"
+TAPE = [Word(i, w, 70.0 + i) for i, w in enumerate(SAID.split())]
+# Qwen's real answer to prompt lekhak-v1 on this sentence (Thu 5 Nov)
+DRAFT = {
+    "ingredients": [
+        {"name_mr": "बेसन", "name_at": 0, "name_en": "besan", "quantity": [1, 2]},
+        {"name_mr": "तूप", "name_at": 4, "name_en": "ghee", "quantity": [5, 5]},
+        {"name_mr": "साखर", "name_at": 7, "name_en": "sugar", "quantity": [8, 9]},
+        {"name_mr": "वेलची", "name_at": 11, "name_en": "cardamom", "quantity": [12, 12]},
+    ],
+    "steps": [[0, 2], [4, 5], [7, 9], [11, 12]],
+}
+
+
+class Flow(unittest.TestCase):
+    def test_review_asks_mom_for_the_gap_only(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        msg = "\n".join(b.review())
+        self.assertIn("-# तूप · said 01:15 · \"by feel\" · gap → Mom", msg)
+        self.assertTrue(msg.endswith("@Mom तूप?"))
+        self.assertIsNone(b.pending)
+
+    def test_moms_fill_then_yes_releases_the_page(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        b.review()
+        self.assertEqual(b.on_mom("@Pothi तूप अर्धी वाटी, स्टीलची"), ["**अर्धी वाटी, स्टीलची** — Mom", "@Mom page pakka?"])
+        self.assertIsNone(b.page)
+        self.assertEqual(b.on_mom("हो"), [])
+        self.assertIn("> अंदाजाने", b.page)
+        self.assertIn("**अर्धी वाटी, स्टीलची** — Mom", b.page)
+        self.assertEqual(b.on_mom("@Pothi तूप एक वाटी"), [])  # written once
+
+    def test_relay_needs_moms_yes(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        b.review()
+        self.assertEqual(b.on_tape("relayed by aryan: तूप अर्धी वाटी"), ["@Mom बरोबर? तूप: अर्धी वाटी (relayed by Aryan)"])
+        self.assertEqual(b.fills, {})
+        self.assertEqual(b.on_mom("हो")[0], "**अर्धी वाटी** — Mom")
+        self.assertEqual(b.fills[1], ("अर्धी वाटी", "Mom (relayed by Aryan)"))
+
+    def test_relay_dropped_when_mom_says_something_else(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        b.on_tape("relayed by aryan: तूप एक कप")
+        b.on_mom("@Pothi तूप अर्धी वाटी")
+        self.assertEqual(b.fills[1], ("अर्धी वाटी", "Mom"))
+
+    def test_mom_cannot_overwrite_dadis_words(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        self.assertEqual(b.on_mom("@Pothi साखर तीन वाट्या"), ["@Mom कोणतं? तूप"])
+        self.assertEqual(b.fills, {})
+
+    def test_pakka_with_gaps_open_lists_them(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        self.assertEqual(b.on_mom("पक्का"), ["@Mom page pakka? 1 open: तूप"])
+        b.on_mom("ho")
+        self.assertIn("-# open: nobody measured it", b.page)
+
+    def test_stray_yes_does_nothing(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        b.review()
+        self.assertEqual(b.on_mom("हो"), [])
+        self.assertIsNone(b.page)
+
+    def test_struck_amount_shown_in_review_not_on_page(self):
+        b = Book("x", TAPE, {"ingredients": [{"name_mr": "तूप", "name_at": 4, "name_en": "ghee", "quantity": None, "amount": "1 cup"}]})
+        self.assertIn("~~1 cup~~", "\n".join(b.review()))
+        b.on_mom("pakka")
+        b.on_mom("हो")
+        self.assertNotIn("1 cup", b.page)
+
+    def test_model_text_cannot_ping_or_format(self):
+        self.assertEqual(esc("@everyone **x**"), "@​everyone \\*\\*x\\*\\*")
+        b = Book("x", TAPE, {"ingredients": [{"name_mr": "तूप", "name_en": "<@123> [a](http://x)", "quantity": [5, 5]}]})
+        b.on_mom("pakka")
+        b.on_mom("हो")
+        self.assertNotIn("<@123>", b.page)
+        self.assertNotIn("](http", b.page)
+
+    def test_name_comes_from_the_tape(self):
+        draft = {"ingredients": [{"name_mr": "लोणी", "name_at": 4, "name_en": "butter", "quantity": [5, 5]}]}
+        self.assertTrue(Book("x", TAPE, draft).review()[0].count("-# तूप ·"))
+
+
+class Tape(unittest.TestCase):
+    TRANSCRIBE = {
+        "results": {
+            "transcripts": [{"transcript": "तूप अंदाजाने."}],
+            "items": [
+                {"type": "pronunciation", "start_time": "1.25", "end_time": "1.6", "alternatives": [{"content": "तूप"}]},
+                {"type": "pronunciation", "start_time": "1.6", "end_time": "2.4", "alternatives": [{"content": "अंदाजाने"}]},
+                {"type": "punctuation", "alternatives": [{"content": "."}]},
+            ],
+        }
+    }
+
+    def test_words_drop_punctuation(self):
+        self.assertEqual(words(self.TRANSCRIBE), [Word(0, "तूप", 1.25), Word(1, "अंदाजाने", 1.6)])
+
+    def test_doc_round_trip(self):
+        self.assertEqual(from_doc(to_doc(TAPE)), TAPE)
+
+    def test_doc_rejects_gaps_and_junk(self):
+        for doc in ("[1] 0.00 तूप", "[0] 0.00 तूप\n[2] 1.00 x", "[0] 0.00 two words", "hello"):
+            with self.subTest(doc=doc):
+                with self.assertRaises(ValueError):
+                    from_doc(doc)
+
+    def test_formats(self):
+        self.assertEqual(media_format("voice-message.ogg"), "ogg")
+        self.assertEqual(media_format("a.M4A"), "mp4")
+        with self.assertRaises(ValueError):
+            media_format("evil.html")
+
+    def test_mmss(self):
+        self.assertEqual(mmss(75.9), "01:15")
+
+
+if __name__ == "__main__":
+    unittest.main()

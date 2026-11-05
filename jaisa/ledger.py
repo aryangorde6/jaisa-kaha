@@ -1,0 +1,147 @@
+"""make ledger: what the models do with Dadi's words, measured, not claimed.
+
+python -m jaisa.ledger run      # every tape × prompt × model, once; saved runs are never redone
+python -m jaisa.ledger report   # counts -> ledger.md (public), evidence -> data/ledger/evidence.md (private)
+
+Inputs are Tape's local copies (data/tapes/tape-N.txt: the dish name, then the
+tape) and Pothi's pages (data/pages/). Two prompts, both frozen by hash:
+- baseline-v1: an ordinary "make a recipe card" request. For each amount Dadi
+  gave by feel, a line naming that ingredient with a number in it counts as
+  "turned into a number". The line is kept as evidence, for a person to check.
+- lekhak-v1: Lekhak's own prompt. Pothi's checker scores it, as in the room.
+"""
+
+import json
+import re
+import sys
+from pathlib import Path
+
+from . import lekhak
+from .check import check
+from .tape import from_doc
+
+ROOT = Path(__file__).resolve().parent.parent
+DATA = ROOT / "data"
+MODELS = [
+    "qwen.qwen3-235b-a22b-2507-v1:0",
+    "mistral.mistral-large-3-675b-instruct",
+    "google.gemma-3-27b-it",
+    "deepseek.v3.2",
+]
+PROMPTS = ["baseline-v1", "lekhak-v1"]
+# A number in an English recipe line: digits, fractions, or number words.
+_NUMBER = re.compile(r"\d|[½¼¾⅓⅔⅛]|\b(one|two|three|four|five|six|seven|eight|nine|ten|half|quarter|dozen)\b", re.I)
+
+
+def tapes():
+    for path in sorted((DATA / "tapes").glob("tape-*.txt")):
+        dish, _, doc = path.read_text().partition("\n")
+        yield path.stem, dish, from_doc(doc)
+
+
+def run_path(tape, prompt, model):
+    return DATA / "ledger" / "runs" / f"{tape}__{prompt}__{model.replace(':', '-')}.json"
+
+
+def run():
+    for tape, dish, words in tapes():
+        for prompt in PROMPTS:
+            for model in MODELS:
+                path = run_path(tape, prompt, model)
+                if path.exists():
+                    continue
+                raw = lekhak.converse(lekhak.prompt(prompt, words), model)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps({
+                    "tape": tape, "prompt": prompt, "prompt_sha256": lekhak.prompt_hash(prompt), "model": model, "raw": raw,
+                }, ensure_ascii=False))
+                print(f"{tape} {prompt} {model}: {len(raw)} chars")
+
+
+_MARKER = re.compile(r"^\s*([-*•]|\d+[.)])\s+")
+_HEAD_IN = re.compile(r"ingredient", re.I)
+_HEAD_OUT = re.compile(r"instruction|method|direction|step|preparation|how to|procedure", re.I)
+
+
+def ingredient_lines(raw: str) -> list:
+    """The card's ingredients section, if it has one, else every line; list markers and step numbers dropped."""
+    lines, inside, found = [], False, False
+    for ln in raw.splitlines():
+        if _HEAD_IN.search(ln) and len(ln) < 60:
+            inside = found = True
+            continue
+        if inside and _HEAD_OUT.search(ln) and len(ln) < 60:
+            inside = False
+        if inside:
+            lines.append(ln)
+    return [_MARKER.sub("", ln).strip() for ln in (lines if found else raw.splitlines())]
+
+
+def invented(raw: str, names) -> list:
+    """Ingredient lines of a free-text card that name one of `names` and hold a number."""
+    names = [n.lower() for n in names if n]
+    return [ln for ln in ingredient_lines(raw) if any(n in ln.lower() for n in names) and _NUMBER.search(ln)]
+
+
+def judge(tape, words):
+    """Pothi's check of Lekhak's own run on Qwen: the reference for which amounts were by feel."""
+    path = run_path(tape, "lekhak-v1", MODELS[0])
+    if not path.exists():
+        return None
+    return check(words, lekhak.parse(json.loads(path.read_text())["raw"]))
+
+
+def page_numbers_unquoted(page: str) -> list:
+    """Page lines holding a digit that are neither Dadi's quote ('>') nor a fill credited to Mom."""
+    out = []
+    for ln in page.splitlines():
+        if re.search(r"[0-9०-९]", ln) and not ln.startswith(">") and not ln.endswith("— Mom") and not ln.endswith("(relayed by Aryan)") and not ln.startswith("-# "):
+            out.append(ln)
+    return out
+
+
+def report():
+    public, private = ["# Ledger", "", "Counts only. Every run is saved with its prompt's SHA-256; transcripts stay private.", ""], ["# Ledger evidence (private)", ""]
+    totals = {"by_feel": 0, "amounts": 0, "invented": {m: 0 for m in MODELS}, "struck": {m: 0 for m in MODELS}}
+    for tape, dish, words in tapes():
+        ref = judge(tape, words)
+        if ref is None:
+            public.append(f"- {tape}: not run yet")
+            continue
+        feel_lines = [ln for ln in ref.lines if ln.status == "gap"]
+        totals["amounts"] += len(ref.lines)
+        totals["by_feel"] += len(feel_lines)
+        public += [f"## {tape}", "", f"{len(ref.lines)} ingredients; {len(feel_lines)} with no measured amount on the tape (by feel or not said); {len(ref.missed)} amount phrases Lekhak skipped.", "",
+                   "| Model | Plain prompt: by-feel amounts turned into numbers | Lekhak prompt: said / gap / struck / missed |", "|---|---|---|"]
+        private += [f"## {tape} · {dish}", ""]
+        for model in MODELS:
+            base = run_path(tape, "baseline-v1", model)
+            careful = run_path(tape, "lekhak-v1", model)
+            cell_b = cell_c = "not run"
+            if base.exists():
+                raw = json.loads(base.read_text())["raw"]
+                hits = {ln.name_en or ln.name_mr: invented(raw, [ln.name_en, ln.name_mr, ln.name_word.w if ln.name_word else ""]) for ln in feel_lines}
+                k = sum(1 for v in hits.values() if v)
+                totals["invented"][model] += k
+                cell_b = f"{k} of {len(feel_lines)}"
+                private += [f"**{model}, plain prompt:**", ""] + [f"- {name}: {' / '.join(v) if v else '(no number)'}" for name, v in hits.items()] + [""]
+            if careful.exists():
+                r = check(words, lekhak.parse(json.loads(careful.read_text())["raw"]))
+                n = {s: sum(ln.status == s for ln in r.lines) for s in ("said", "gap", "struck")}
+                totals["struck"][model] += n["struck"]
+                cell_c = f"{n['said']} / {n['gap']} / {n['struck']} / {len(r.missed)}"
+            public.append(f"| {model} | {cell_b} | {cell_c} |")
+        public.append("")
+    pages = sorted((DATA / "pages").glob("page-*.md"))
+    unquoted = {p.stem: page_numbers_unquoted(p.read_text()) for p in pages}
+    public += ["## Pages", "", f"{len(pages)} pages written by Pothi. Numbers on them that are neither Dadi's quote nor Mom's: **{sum(len(v) for v in unquoted.values())}**.", ""]
+    public += ["## Totals", "", f"{totals['by_feel']} of {totals['amounts']} amounts had no measured amount on the tape.", ""]
+    public += [f"- {m}: plain prompt turned {totals['invented'][m]} into numbers; Lekhak prompt had {totals['struck'][m]} lines struck by Pothi" for m in MODELS]
+    (ROOT / "ledger.md").write_text("\n".join(public) + "\n")
+    (DATA / "ledger").mkdir(parents=True, exist_ok=True)
+    (DATA / "ledger" / "evidence.md").write_text("\n".join(private) + "\n")
+    print("wrote ledger.md and data/ledger/evidence.md")
+
+
+if __name__ == "__main__":
+    {"run": run, "report": report}.get(sys.argv[1] if len(sys.argv) > 1 else "", lambda: sys.exit("usage: python -m jaisa.ledger run|report"))()

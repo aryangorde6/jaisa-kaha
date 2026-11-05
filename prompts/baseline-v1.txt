@@ -1,0 +1,3 @@
+Turn this Marathi grandmother's recipe into a clear recipe card in English with ingredient quantities, so anyone can cook it:
+
+{text}

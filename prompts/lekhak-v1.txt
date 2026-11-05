@@ -1,0 +1,14 @@
+Below is a Marathi recipe, spoken aloud and transcribed as numbered words.
+
+List every ingredient the speaker names, in the order she names them. For each one give:
+- "name_mr": the ingredient as spoken;
+- "name_at": the index of the word that names it;
+- "name_en": a short English name;
+- "quantity": the word-index range [start,end] of the words that give its amount, exactly as spoken. Vague amounts count: if she says अंदाजाने, थोडंसं or चवीनुसार, cite those words. Use null only if she says nothing about the amount.
+
+Then give "steps": the method as word-index ranges [start,end], in order.
+
+Never invent, convert, round or retype a quantity. Never add an ingredient she didn't name. Reply with JSON only, in this shape:
+{"ingredients":[{"name_mr":"...","name_at":0,"name_en":"...","quantity":[0,0]}],"steps":[[0,0]]}
+
+{words}
