@@ -28,6 +28,38 @@ Dadi isn't in the room. I record her in the kitchen, voice only, with her consen
 
 Request → hand-off → work → review → human approval → result.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as Aryan (Discord)
+    participant S as Switch server
+    participant T as Tape (Aryan's)
+    participant L as Lekhak (Aryan's)
+    participant P as Pothi (Mom's)
+    actor M as Mom (Discord)
+    A->>S: voice note, then "@Tape besan ladoo"
+    S->>T: delivered: Aryan is on Tape's rule
+    T->>S: creates tape-N (every word, with its second)
+    T->>L: targeted message "tape-N"
+    L->>S: who created tape-N?
+    S-->>L: Tape
+    L->>S: creates draft-N (each amount cites words in tape-N)
+    L->>T: "draft ready: draft-N"
+    T->>S: who created draft-N?
+    S-->>T: Lekhak
+    T->>P: "draft ready: draft-N"
+    P->>S: who created draft-N and tape-N?
+    S-->>P: Lekhak, Tape
+    P->>M: review in the room, gaps only: "@Mom तूप?"
+    M->>P: "@Pothi तूप अर्धी वाटी, स्टीलची"
+    P->>M: "page pakka?"
+    M->>P: "हो"
+    P->>S: creates page-N (only Pothi can change it)
+    Note over A,P: "@Pothi ghee 1 cup" from Aryan, or from Lekhak:<br/>Switch refuses it under Pothi's name, and Pothi's code never receives it.
+```
+
+Every arrow between people and agents goes through Switch, which checks the addressee's rule before delivering anything.
+
 1. **Request.** I post Dadi's voice note in `#diwali-2026`: `@Tape besan ladoo`.
 2. **Hand-off.** Tape fetches the audio through Switch's media route, checks the bytes are audio (ffprobe, not the filename), transcribes it, and writes `tape-N`: every word, numbered, with its second in the voice note. Then `@Lekhak tape-N`.
 3. **Work.** Lekhak writes `draft-N` as JSON. **It never types a quantity.** Each amount is a word range in `tape-N`, such as `[5, 5]`.
