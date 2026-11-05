@@ -170,3 +170,7 @@ The 20-point web checklist, mapped onto this build:
 - Mom and Dadi agreed to their voices being used, not their faces.
 - Dadi's audio lives in a private S3 bucket that deletes it after 30 days. It never goes in this repo.
 - The ledger publishes counts. A transcript goes public only with that family's consent.
+
+## License
+
+MIT, see [LICENSE](LICENSE). It covers the code, prompts and docs in this repo. My family's recordings and transcripts are not in the repo and are not licensed.
