@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 from . import budget, lekhak, tape as tapelib
-from .pothi import Book, page_messages
+from .pothi import COOK, Book, page_messages
 from .switch import SWITCH_NAME, Agent, agent_ids
 
 ROOM = os.environ.get("JAISA_ROOM", "")
@@ -205,7 +205,7 @@ async def tape_transcribe(me, att, dish):
     await me.op(
         "create_room_document",
         name=name,
-        description=f"{dish}: Mom's words, as Tape heard them",
+        description=f"{dish}: {COOK}'s words, as Tape heard them",
         instructions="One word per line: [index] seconds word. Cite word indexes; never retype the words.",
         content=tapelib.to_doc(words),
     )
@@ -361,8 +361,8 @@ async def run_pothi():
                 await me.op(
                     "create_room_document",
                     name=f"page-{n}",
-                    description=f"{book.dish}: approved by Mom",
-                    instructions="Every amount here is on the tape or typed by Mom. Read only.",
+                    description=f"{book.dish}: approved by {COOK}",
+                    instructions=f"Every amount here is on the tape or typed by {COOK}. Read only.",
                     content=book.page,
                 )
             written = True

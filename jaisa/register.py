@@ -1,8 +1,8 @@
 """Register one agent: python -m jaisa.register Tape|Lekhak|Pothi
 
 Asks for the registration key without echoing it. Tape and Lekhak take
-Aryan's key; Pothi takes Mom's, typed by Mom, so Switch records her as its
-owner. The agent's own API key lands in keys/<name>.json (mode 600).
+Aryan's key; Pothi takes the cook's (Mom's at home; in the demo video, a second
+account of mine), typed by the cook, so Switch records the cook as its owner. The agent's own API key lands in keys/<name>.json (mode 600).
 """
 
 import getpass
@@ -11,9 +11,9 @@ import sys
 from .switch import register
 
 DESCRIPTIONS = {
-    "Tape": "Aryan's. Transcribes Mom's recipe voice notes (Marathi) and passes two fixed lines to Pothi.",
+    "Tape": "Aryan's. Transcribes the cook's recipe voice notes (Marathi) and passes two fixed lines to Pothi.",
     "Lekhak": "Aryan's. Drafts the recipe as word citations into Tape's transcript. Never types a quantity.",
-    "Pothi": "Mom's. Checks every quantity against the tape, asks Mom for the gaps, writes the page once.",
+    "Pothi": "The cook's. Checks every quantity against the tape, asks the cook for the gaps, writes the page once.",
 }
 
 

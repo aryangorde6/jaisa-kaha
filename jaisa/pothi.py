@@ -7,12 +7,16 @@ came from the tape, Lekhak or a chat message is escaped before it's posted,
 so nothing in it can ping, link or reformat the room.
 """
 
+import os
 import re
 
 from .check import check
 from .lexicon import fold, is_yes
 from .tape import mmss
 
+# Who the page credits for what was said and typed: Mom by default. The demo
+# video sets JAISA_COOK=Cook, because there I play the cook on a second account.
+COOK = os.environ.get("JAISA_COOK", "Mom")
 DONE_WORDS = {fold(w) for w in "पक्का पक्के पक्की pakka done".split()}
 _MD = re.compile(r"([\\*_~`|<>\[\]()#])")
 CHUNK = 1900  # Discord's limit is 2000
@@ -103,11 +107,11 @@ class Book:
             if ln.status == "said":
                 out += [f"> {_words(ln.quote)}", f"-# {name} · said {mmss(ln.at)}"]
             elif ln.status == "struck":
-                out += [f"~~{esc(ln.claimed)}~~", f"-# {name} · {esc(ln.note)} · gap → Mom"]
+                out += [f"~~{esc(ln.claimed)}~~", f"-# {name} · {esc(ln.note)} · gap → {COOK}"]
             elif ln.quote:
-                out += [f"> {_words(ln.quote)}", f'-# {name} · said {mmss(ln.at)} · "{esc(ln.note)}" · gap → Mom']
+                out += [f"> {_words(ln.quote)}", f'-# {name} · said {mmss(ln.at)} · "{esc(ln.note)}" · gap → {COOK}']
             else:
-                out += [f"-# {name} · {esc(ln.note)} · gap → Mom"]
+                out += [f"-# {name} · {esc(ln.note)} · gap → {COOK}"]
         for run in self.result.missed:
             out += [f"> {_words(run)}", f"-# missed by Lekhak {mmss(run[0].t)}"]
         gaps = self.open_gaps()
@@ -154,8 +158,8 @@ class Book:
             pending, self.pending = self.pending, None
             if pending and pending[0] == "relay":
                 _, n, fill = pending
-                self.fills[n] = (fill, "Mom (relayed by Aryan)")
-                return [f"**{esc(fill)}** — Mom"] + self._after_fill()
+                self.fills[n] = (fill, f"{COOK} (relayed by Aryan)")
+                return [f"**{esc(fill)}** — {COOK}"] + self._after_fill()
             if pending and pending[0] == "pakka":
                 self.page = self.render()
                 return []
@@ -172,8 +176,8 @@ class Book:
             first = (self.open_gaps() or self.fillable() or [None])[0]
             return [self.ask(f"कोणतं? {names}", gap_how(self.name(first)))] if names else []
         self.pending = None
-        self.fills[n] = (fill, "Mom")
-        return [f"**{esc(fill)}** — Mom"] + self._after_fill()
+        self.fills[n] = (fill, COOK)
+        return [f"**{esc(fill)}** — {COOK}"] + self._after_fill()
 
     def on_tape(self, text: str) -> list:
         """Tape's only line for Pothi besides "draft ready": "relayed by aryan: <name> <words>"."""
@@ -188,7 +192,7 @@ class Book:
     # --- the page ---
 
     def render(self) -> str:
-        out = [f"**{esc(self.dish)}**", "-# Mom's words from the tape, checked word by word by Pothi. Every amount is on the tape or typed by Mom. Mom approved this page.", ""]
+        out = [f"**{esc(self.dish)}**", f"-# {COOK}'s words from the tape, checked word by word by Pothi. Every amount is on the tape or typed by {COOK}. {COOK} approved this page.", ""]
         for n, ln in enumerate(self.lines):
             gloss = f"{esc(ln.name_en)} · " if ln.name_en else ""
             out.append(self.name(n))
@@ -210,7 +214,7 @@ class Book:
                 out += [f"> {_words(step)}", f"-# {mmss(step[0].t)}"]
             out.append("")
         if self.result.missed:
-            out.append("-# Lekhak skipped these amounts. They're Mom's, on the tape:")
+            out.append(f"-# Lekhak skipped these amounts. They're {COOK}'s, on the tape:")
             for run in self.result.missed:
                 out += [f"> {_words(run)}", f"-# {mmss(run[0].t)}"]
             out.append("")

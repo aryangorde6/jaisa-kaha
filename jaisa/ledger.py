@@ -24,6 +24,7 @@ from pathlib import Path
 
 from . import lekhak
 from .check import check
+from .pothi import COOK
 from .tape import from_doc, to_doc
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -115,7 +116,7 @@ def page_numbers_unquoted(page: str) -> list:
     """Page lines holding a digit that are neither a quote from the tape ('>') nor a fill credited to Mom."""
     out = []
     for ln in page.splitlines():
-        if re.search(r"[0-9०-९]", ln) and not ln.startswith(">") and not ln.endswith("— Mom") and not ln.endswith("(relayed by Aryan)") and not ln.startswith("-# "):
+        if re.search(r"[0-9०-९]", ln) and not ln.startswith(">") and not ln.endswith(f"— {COOK}") and not ln.endswith("(relayed by Aryan)") and not ln.startswith("-# "):
             out.append(ln)
     return out
 

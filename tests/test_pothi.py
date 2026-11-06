@@ -37,6 +37,24 @@ class Flow(unittest.TestCase):
         self.assertIn("**अर्धी वाटी, स्टीलची** — Mom", b.page)
         self.assertEqual(b.on_mom("@Pothi तूप एक वाटी"), [])  # written once
 
+    def test_cook_label_credits_whoever_plays_the_cook(self):
+        # The demo video runs with JAISA_COOK=Cook (I play the cook on a second
+        # account), so nothing on screen says "Mom" for words she didn't say.
+        import importlib
+        import os
+        import jaisa.pothi as pothi
+        os.environ["JAISA_COOK"] = "Cook"
+        try:
+            demo = importlib.reload(pothi)
+            b = demo.Book("बेसन लाडू", TAPE, DRAFT)
+            self.assertIn("gap → Cook", "\n".join(b.review()))
+            self.assertEqual(b.on_mom("@Pothi तूप अर्धी वाटी")[0], "**अर्धी वाटी** — Cook")
+            b.on_mom("हो")
+            self.assertNotIn("Mom", b.page)
+        finally:
+            os.environ["JAISA_COOK"] = "Mom"
+            importlib.reload(pothi)
+
     def test_relay_needs_moms_yes(self):
         b = Book("बेसन लाडू", TAPE, DRAFT)
         b.review()

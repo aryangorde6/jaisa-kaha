@@ -27,7 +27,7 @@ rule-log:       ## who set each agent's rule, from Switch's own log (read-only):
 	AGENT=$(AGENT) BY=$(BY) PY=$(PY) deploy/rule-log.sh
 
 test:           ## every test, no network (the security tests are in tests/test_agents.py)
-	$(PY) -m unittest discover -s tests -t . -v
+	JAISA_COOK=Mom $(PY) -m unittest discover -s tests -t . -v
 
 security:       ## before every push: names, secrets, family data, SQL, ports
 	deploy/security.sh
