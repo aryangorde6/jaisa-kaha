@@ -1,7 +1,7 @@
 """make ledger: what the models do with Mom's words, measured, not claimed.
 
 python -m jaisa.ledger run      # every tape × prompt × model, once; saved runs are never redone
-python -m jaisa.ledger report   # counts -> ledger.md (public), evidence -> data/ledger/evidence.md (private)
+python -m jaisa.ledger report   # counts -> ledger.md + ledger.json (public), evidence -> data/ledger/evidence.md (private)
 
 Inputs are Tape's local copies (data/tapes/<room>/tape-N.txt: the dish name,
 then the tape) and Pothi's pages (data/pages/<room>/), from ONE room only:
@@ -126,12 +126,14 @@ def report():
               f"Tapes from the family room only (`{room[:8]}…`). Tests in #dev and the S8 takes are never counted.", ""]
     private = ["# Ledger evidence (private)", ""]
     totals = {"by_feel": 0, "amounts": 0, "invented": {m: 0 for m in MODELS}, "struck": {m: 0 for m in MODELS}}
+    dishes, plain_runs = 0, {m: 0 for m in MODELS}  # plain_runs: the by-feel amounts each model was really asked about
     for tape, dish, words in tapes():
         ref = judge(tape, words)
         if ref is None:
             public.append(f"- {tape}: not run yet")
             continue
         feel_lines = [ln for ln in ref.lines if ln.status == "gap"]
+        dishes += 1
         totals["amounts"] += len(ref.lines)
         totals["by_feel"] += len(feel_lines)
         public += [f"## {tape}", "", f"{len(ref.lines)} ingredients; {len(feel_lines)} with no measured amount on the tape (by feel or not said); {len(ref.missed)} amount phrases Lekhak skipped.", "",
@@ -146,6 +148,7 @@ def report():
                 hits = {ln.name_en or ln.name_mr: invented(raw, [ln.name_en, ln.name_mr, ln.name_word.w if ln.name_word else ""]) for ln in feel_lines}
                 k = sum(1 for v in hits.values() if v)
                 totals["invented"][model] += k
+                plain_runs[model] += len(feel_lines)
                 cell_b = f"{k} of {len(feel_lines)}"
                 private += [f"**{model}, plain prompt:**", ""] + [f"- {name}: {' / '.join(v) if v else '(no number)'}" for name, v in hits.items()] + [""]
             if careful.exists():
@@ -161,9 +164,16 @@ def report():
     public += ["## Totals", "", f"{totals['by_feel']} of {totals['amounts']} amounts had no measured amount on the tape.", ""]
     public += [f"- {m}: plain prompt turned {totals['invented'][m]} into numbers; Lekhak prompt had {totals['struck'][m]} lines struck by Pothi" for m in MODELS]
     (ROOT / "ledger.md").write_text("\n".join(public) + "\n")
+    # the same counts, for the video's card: numbers only, never a word from a tape
+    (ROOT / "ledger.json").write_text(json.dumps({
+        "room": room[:8], "dishes": dishes, "amounts": totals["amounts"], "no_measure": totals["by_feel"],
+        "models": MODELS, "prompts": {p: lekhak.prompt_hash(p) for p in PROMPTS},
+        "plain_turned_into_numbers": totals["invented"], "plain_asked_about": plain_runs, "lekhak_struck": totals["struck"],
+        "pages": len(pages), "page_numbers_not_hers": sum(len(v) for v in unquoted.values()),
+    }, indent=1) + "\n")
     (DATA / "ledger").mkdir(parents=True, exist_ok=True)
     (DATA / "ledger" / "evidence.md").write_text("\n".join(private) + "\n")
-    print("wrote ledger.md and data/ledger/evidence.md")
+    print("wrote ledger.md, ledger.json and data/ledger/evidence.md")
 
 
 if __name__ == "__main__":

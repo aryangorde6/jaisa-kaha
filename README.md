@@ -99,7 +99,7 @@ Every tape goes through two prompts on four models, all on Amazon Bedrock in Mum
 - `prompts/baseline-v2.txt`: an ordinary "turn my mother's recipe into a recipe card" request. It replaced `baseline-v1` (which said "grandmother's recipe") on Fri 6 Nov, before the first real recording;
 - `prompts/lekhak-v1.txt`: Lekhak's own prompt, scored by Pothi's checker.
 
-`ledger.md` holds the counts. The lines behind each count stay private, because they're my family's words.
+`ledger.md` holds the counts, and `ledger.json` the same counts for the video's card. The lines behind each count stay private, because they're my family's words.
 
 It counts the family room's tapes only (`JAISA_LEDGER_ROOM`). Test voice notes in `#dev` are kept in another folder and never reach it, and each saved run is tied to the SHA-256 of the words it was made from (`tests/test_ledger.py`, class `OneRoom`).
 
@@ -126,7 +126,7 @@ Qwen also turned *पाव किलो* (a quarter kilo) into "1 kg". With Lek
 make check
 ```
 
-That runs 79 tests, then the pre-push scan:
+That runs 80 tests, then the pre-push scan:
 - Pothi's checker and the page;
 - the whole chain in a fake Switch room: voice note → tape → draft → review → Mom's fill → `हो` → page;
 - a test for each security check below.

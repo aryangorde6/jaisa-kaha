@@ -66,5 +66,40 @@ class OneRoom(unittest.TestCase):
         self.assertEqual(ledger.run_path("tape-1", "lekhak-v1", model, TAPE), ledger.run_path("tape-1", "lekhak-v1", model, list(TAPE)))
 
 
+class Report(unittest.TestCase):
+    """make ledger report: ledger.json carries ledger.md's counts and no word of the tape."""
+
+    def test_report_counts_and_json(self):
+        import json
+        from tests.test_pothi import DRAFT
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "data" / "tapes" / "family").mkdir(parents=True)
+        (tmp / "data" / "tapes" / "family" / "tape-1.txt").write_text(f"बेसन लाडू\n{to_doc(TAPE)}")
+        (tmp / "data" / "pages" / "family").mkdir(parents=True)
+        (tmp / "data" / "pages" / "family" / "page-1.md").write_text("**x**\n> दोन वाट्या\n**1 वाटी** — Mom\nतूप 2 cups")
+        with mock.patch.object(ledger, "DATA", tmp / "data"), mock.patch.object(ledger, "ROOT", tmp), \
+                mock.patch.object(ledger, "ROOM", "family"), mock.patch("builtins.print"):
+            save = lambda prompt, model, raw: (lambda p: (p.parent.mkdir(parents=True, exist_ok=True), p.write_text(json.dumps({"raw": raw}))))(
+                ledger.run_path("tape-1", prompt, model, TAPE))
+            save("lekhak-v1", ledger.MODELS[0], json.dumps(DRAFT, ensure_ascii=False))
+            save("baseline-v2", ledger.MODELS[0], "Ingredients\n- Ghee (तूप) 1 cup\n- Besan 250 g")
+            save("baseline-v2", ledger.MODELS[1], "Ingredients\n- Ghee, to taste")
+            ledger.report()
+        out = json.loads((tmp / "ledger.json").read_text())
+        ref = ledger.check(TAPE, ledger.lekhak.parse(json.dumps(DRAFT, ensure_ascii=False)))
+        feel = sum(ln.status == "gap" for ln in ref.lines)
+        self.assertEqual((out["dishes"], out["amounts"], out["no_measure"]), (1, len(ref.lines), feel))
+        self.assertGreater(feel, 0)
+        m0, m1, m2 = ledger.MODELS[:3]
+        self.assertEqual(out["plain_turned_into_numbers"][m0], 1)  # ghee by feel became "1 cup"
+        self.assertEqual(out["plain_turned_into_numbers"][m1], 0)  # "to taste" has no number
+        self.assertEqual((out["plain_asked_about"][m0], out["plain_asked_about"][m1], out["plain_asked_about"][m2]), (feel, feel, 0))
+        self.assertEqual((out["pages"], out["page_numbers_not_hers"]), (1, 1))  # "तूप 2 cups" is nobody's
+        self.assertEqual(set(out["prompts"]), set(ledger.PROMPTS))
+        self.assertIn(f"{feel} of {len(ref.lines)} amounts", (tmp / "ledger.md").read_text())
+        text = (tmp / "ledger.json").read_text()
+        self.assertFalse(any(w.w in text for w in TAPE), "a word of the tape leaked into ledger.json")
+
+
 if __name__ == "__main__":
     unittest.main()
