@@ -168,14 +168,14 @@ The 20-point web checklist, mapped onto this build:
 
 - Mom's voice, Mom's messages, the refusals, the ledger numbers and my sister's cooking are never simulated.
 - This year's faral was made before the event, so any shot of an action is redone with my hands and captioned *illustration*. Nobody in the family appears on camera, except as hands and only with their own yes.
-- The video's first three seconds are a stock clip of someone else's hands rolling besan ladoo, labelled *stock footage* on screen and credited below. Nothing else in the video is stock.
+- Two shots in the video, the first three seconds and the ten at 2:12, are a stock clip of someone else's hands making besan ladoo, labelled *stock footage* on screen and credited below. They illustrate; they don't show anyone cooking from a Jaisa Kaha page. Nothing else in the video is stock.
 - Mom agreed to her voice being used, not her face.
 - Mom's audio lives in a private S3 bucket that deletes it after 30 days. It never goes in this repo.
 - The ledger publishes counts. A transcript goes public only with that family's consent.
 
 ## Credits
 
-- Video, opening clip (labelled stock footage): "Making Besan Ladoo Indian Sweet Dessert" by **ARGA** on Pexels (https://www.pexels.com/video/making-besan-ladoo-indian-sweet-dessert-40753165/), Pexels License.
+- Video, the two shots labelled stock footage (0:00 and 2:12): "Making Besan Ladoo Indian Sweet Dessert" by **ARGA** on Pexels (https://www.pexels.com/video/making-besan-ladoo-indian-sweet-dessert-40753165/), Pexels License.
 
 ## License
 
