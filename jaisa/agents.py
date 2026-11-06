@@ -351,13 +351,20 @@ async def run_pothi():
             replies = book.on_mom(said(p))
         await send(me, replies)
         if book and book.page and not written:
-            await me.op(
-                "create_room_document",
-                name=f"page-{n}",
-                description=f"{book.dish}: approved by Mom",
-                instructions="Every amount here is on the tape or typed by Mom. Read only.",
-                content=book.page,
-            )
+            # A page-<n> of Pothi's own already exists only when a tape number
+            # comes round again (make rehearse reuses 999); like Lekhak's draft,
+            # it's rewritten. Anyone else's document of that name is never touched.
+            old = await find_doc(me, f"page-{n}")
+            if old and old.get("created_by_agent_id") == ids["Pothi"]:
+                await me.op("update_room_document", document_id=old["id"], content=book.page)
+            else:
+                await me.op(
+                    "create_room_document",
+                    name=f"page-{n}",
+                    description=f"{book.dish}: approved by Mom",
+                    instructions="Every amount here is on the tape or typed by Mom. Read only.",
+                    content=book.page,
+                )
             written = True
             keep(f"pages/{ROOM}/page-{n}.md", book.page)  # for make ledger, per room as tapes are
             save(n, book, written)  # before posting, so a failed post never writes the page twice

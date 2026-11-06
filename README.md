@@ -69,7 +69,7 @@ Every arrow between people and agents goes through Switch, which checks the addr
    - the words say "by feel" (अंदाजाने, थोडंसं, चवीनुसार…) → a **gap**, asked of Mom;
    - Lekhak typed an amount, or cited words that hold none → **struck**;
    - an amount on the tape that Lekhak didn't cite → **missed by Lekhak**.
-5. **Approval.** Mom answers in her own units: `@Pothi तूप अर्धी वाटी, स्टीलची` ("half a vaati, the steel one"). If she tells me aloud instead, I can relay it through Tape, but nothing relayed counts until Mom says `हो` (yes). When the gaps are done, Pothi asks `page pakka?`. Only Mom's `हो` releases it.
+5. **Approval.** Mom answers in her own units: `@Pothi तूप अर्धी वाटी, स्टीलची` ("half a vaati, the steel one"). If she tells me aloud instead, I can relay it through Tape, but nothing relayed counts until Mom says `हो` (yes). When the gaps are done, Pothi asks `page pakka?`. Only Mom's `@Pothi हो` releases it. Every message to Pothi starts with `@Pothi`: on this server a message reaches an agent only when it tags it (Switch's "follow the conversation" is off, and a Discord Reply carries no mention), so each of Pothi's questions ends with how to answer. She can also leave a gap by feel: `@Pothi पक्का`, then `@Pothi हो`, approves the page with that gap still open.
 6. **Result.** Pothi writes `page-N` once, as a Switch room document, and posts the same page in the room. The document is the record, but its link opens the Gateway, which never leaves this laptop, so the room copy is the one the family reads on their phones. What Mom said appears as quotes, each with its second on the tape; anything she typed appears in bold, credited `— Mom`.
 
 ## Why it stops working without Switch
@@ -126,7 +126,7 @@ Qwen also turned *पाव किलो* (a quarter kilo) into "1 kg". With Lek
 make check
 ```
 
-That runs 73 tests, then the pre-push scan:
+That runs 79 tests, then the pre-push scan:
 - Pothi's checker and the page;
 - the whole chain in a fake Switch room: voice note → tape → draft → review → Mom's fill → `हो` → page;
 - a test for each security check below.
@@ -146,7 +146,7 @@ Needs Docker, an AWS account with Transcribe and Bedrock in `ap-south-1`, a Disc
 5. Copy `deploy/agents.env.example` to `deploy/agents.env`. Fill in the room id and the S3 bucket. `make senders` prints the agents' Switch sender ids to paste in, and lists the people Switch has seen: pick your own sender id, Mom's, and Mom's username (Pothi addresses her by it). Agents are told apart by sender id because Switch's live events don't mark a sender as an agent.
 6. `make tape`, `make lekhak`, `make pothi`, each in its own terminal.
 7. In the channel: `!invite-agent @Tape`, `@Lekhak`, `@Pothi`. Then post a voice note and `@Tape <dish>`.
-8. To check the live room without a recording: stop `make tape`, then `make smoke`. Acting as Tape, it sends a test transcript (from the tests, not Mom's) to the real Lekhak and checks the draft that comes back: Lekhak's sender id, the draft's creator in Switch's records, and Pothi's checker. `make ask AS=Lekhak TO=pothi SAY='ghee 1 cup'` (with Lekhak stopped) should show Switch refusing the model: Pothi declines in the room, and the call reports `not_permitted` (from Switch's source, `agent_core.py:2144`; *pending a live run, since Pothi is registered in Mom's session*).
+8. To check the live room without a recording: stop `make tape`, then `make smoke`. Acting as Tape, it sends a test transcript (from the tests, not Mom's) to the real Lekhak and checks the draft that comes back: Lekhak's sender id, the draft's creator in Switch's records, and Pothi's checker. `make rehearse` does the same, then hands the test draft to the real Pothi: its review appears in the room, and Mom can practise her answers on the test transcript before her own recipe. `make ask AS=Lekhak TO=pothi SAY='ghee 1 cup'` (with Lekhak stopped) should show Switch refusing the model: Pothi declines in the room, and the call reports `not_permitted` (from Switch's source, `agent_core.py:2144`; *pending a live run, since Pothi is registered in Mom's session*).
 
 ## Security
 

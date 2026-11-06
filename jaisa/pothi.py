@@ -17,6 +17,18 @@ DONE_WORDS = {fold(w) for w in "पक्का पक्के पक्की 
 _MD = re.compile(r"([\\*_~`|<>\[\]()#])")
 CHUNK = 1900  # Discord's limit is 2000
 
+# A person's message reaches Pothi only when it tags Pothi: this server runs
+# without Switch's "follow the conversation", and a Discord Reply carries no
+# mention. So every question tells Mom how to answer. The @ is followed by a
+# zero-width space, so Switch never reads Pothi's own hint as Pothi tagging
+# itself (a mention needs a name character right after the @, mentions.py).
+TAG = "@\u200bPothi"
+YES_HOW = f"-# उत्तर: {TAG} हो"
+
+
+def gap_how(name) -> str:
+    return f"-# उत्तर: {TAG} {name} … · माप नसेल तर {TAG} पक्का"
+
 
 def esc(text) -> str:
     text = " ".join(str(text).split())
@@ -78,6 +90,10 @@ class Book:
     def open_gaps(self):
         return [n for n in self.fillable() if n not in self.fills]
 
+    def ask(self, text, how) -> str:
+        """A question for Mom, sent as a mention, with how to answer it below."""
+        return f"{self.mom} {text}\n{how}"
+
     # --- what Pothi posts after checking the draft ---
 
     def review(self) -> list:
@@ -96,33 +112,40 @@ class Book:
             out += [f"> {_words(run)}", f"-# missed by Lekhak {mmss(run[0].t)}"]
         gaps = self.open_gaps()
         if gaps:
-            ask = f"{self.mom} " + " ".join(f"{self.name(n)}?" for n in gaps)
+            ask = self.ask(" ".join(f"{self.name(n)}?" for n in gaps), gap_how(self.name(gaps[0])))
         else:
             self.pending = ("pakka",)
-            ask = f"{self.mom} page pakka?"
+            ask = self.ask("page pakka?", YES_HOW)
         return chunks(out) + [ask]  # the ask on its own, so it can be sent as a mention
 
     # --- Mom and Tape ---
 
     def _match(self, text):
-        """(line number, fill text) when the message starts with a fillable ingredient's name."""
+        """(line number, fill text) when the message starts or ends with a fillable
+        ingredient's name: "तूप अर्धी वाटी" and "अर्धी वाटी तूप" both fill the ghee.
+        A name at the start wins over one at the end."""
         words = [w for w in text.split() if not w.startswith(("@", "<@"))]
+        keys = {}
         for n in self.fillable():
             ln = self.lines[n]
             names = {fold(ln.name_mr), ln.name_en.lower()}
             if ln.name_word:
                 names.add(fold(ln.name_word.w))
-            names.discard("")
-            for k in (3, 2, 1):
-                if len(words) > k and "".join(fold(w) for w in words[:k]) in {x.replace(" ", "") for x in names}:
-                    return n, " ".join(words[k:]).strip(" ,:")
+            keys[n] = {x.replace(" ", "") for x in names} - {""}
+        for split in (lambda k: (words[:k], words[k:]), lambda k: (words[-k:], words[:-k])):
+            for n, names in keys.items():
+                for k in (3, 2, 1):
+                    if len(words) > k:
+                        name, rest = split(k)
+                        if "".join(fold(w) for w in name) in names:
+                            return n, " ".join(rest).strip(" ,:")
         return None, ""
 
     def _after_fill(self):
         if self.open_gaps():
             return []
         self.pending = ("pakka",)
-        return [f"{self.mom} page pakka?"]
+        return [self.ask("page pakka?", YES_HOW)]
 
     def on_mom(self, text: str) -> list:
         if self.page is not None:
@@ -142,11 +165,12 @@ class Book:
             self.pending = ("pakka",)
             gaps = self.open_gaps()
             left = f" {len(gaps)} open: " + " · ".join(self.name(n) for n in gaps) if gaps else ""
-            return [f"{self.mom} page pakka?{left}"]
+            return [self.ask(f"page pakka?{left}", YES_HOW)]
         n, fill = self._match(text)
         if n is None or not fill:
             names = " · ".join(self.name(n) for n in self.fillable())
-            return [f"{self.mom} कोणतं? {names}"] if names else []
+            first = (self.open_gaps() or self.fillable() or [None])[0]
+            return [self.ask(f"कोणतं? {names}", gap_how(self.name(first)))] if names else []
         self.pending = None
         self.fills[n] = (fill, "Mom")
         return [f"**{esc(fill)}** — Mom"] + self._after_fill()
@@ -159,7 +183,7 @@ class Book:
         if n is None or not fill:
             return []
         self.pending = ("relay", n, fill)
-        return [f"{self.mom} बरोबर? {self.name(n)}: {esc(fill)} (relayed by Aryan)"]
+        return [self.ask(f"बरोबर? {self.name(n)}: {esc(fill)} (relayed by Aryan)", YES_HOW)]
 
     # --- the page ---
 

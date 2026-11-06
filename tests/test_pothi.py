@@ -1,7 +1,8 @@
+import re
 import unittest
 
 from jaisa.check import Word
-from jaisa.pothi import CHUNK, Book, esc, page_messages
+from jaisa.pothi import CHUNK, TAG, YES_HOW, Book, esc, gap_how, page_messages
 from jaisa.tape import from_doc, media_format, mmss, to_doc, words
 
 SAID = "बेसन पाव किलो घ्यायचं तूप अंदाजाने घालायचं साखर दोन वाट्या आणि वेलची चिमूटभर"
@@ -23,13 +24,13 @@ class Flow(unittest.TestCase):
         b = Book("बेसन लाडू", TAPE, DRAFT)
         msg = "\n".join(b.review())
         self.assertIn("-# तूप · said 01:15 · \"by feel\" · gap → Mom", msg)
-        self.assertTrue(msg.endswith("@Mom तूप?"))
+        self.assertTrue(msg.endswith("@Mom तूप?\n" + gap_how("तूप")))
         self.assertIsNone(b.pending)
 
     def test_moms_fill_then_yes_releases_the_page(self):
         b = Book("बेसन लाडू", TAPE, DRAFT)
         b.review()
-        self.assertEqual(b.on_mom("@Pothi तूप अर्धी वाटी, स्टीलची"), ["**अर्धी वाटी, स्टीलची** — Mom", "@Mom page pakka?"])
+        self.assertEqual(b.on_mom("@Pothi तूप अर्धी वाटी, स्टीलची"), ["**अर्धी वाटी, स्टीलची** — Mom", "@Mom page pakka?\n" + YES_HOW])
         self.assertIsNone(b.page)
         self.assertEqual(b.on_mom("हो"), [])
         self.assertIn("> अंदाजाने", b.page)
@@ -39,7 +40,7 @@ class Flow(unittest.TestCase):
     def test_relay_needs_moms_yes(self):
         b = Book("बेसन लाडू", TAPE, DRAFT)
         b.review()
-        self.assertEqual(b.on_tape("relayed by aryan: तूप अर्धी वाटी"), ["@Mom बरोबर? तूप: अर्धी वाटी (relayed by Aryan)"])
+        self.assertEqual(b.on_tape("relayed by aryan: तूप अर्धी वाटी"), ["@Mom बरोबर? तूप: अर्धी वाटी (relayed by Aryan)\n" + YES_HOW])
         self.assertEqual(b.fills, {})
         self.assertEqual(b.on_mom("हो")[0], "**अर्धी वाटी** — Mom")
         self.assertEqual(b.fills[1], ("अर्धी वाटी", "Mom (relayed by Aryan)"))
@@ -52,12 +53,12 @@ class Flow(unittest.TestCase):
 
     def test_a_typed_fill_cannot_overwrite_the_tape(self):
         b = Book("बेसन लाडू", TAPE, DRAFT)
-        self.assertEqual(b.on_mom("@Pothi साखर तीन वाट्या"), ["@Mom कोणतं? तूप"])
+        self.assertEqual(b.on_mom("@Pothi साखर तीन वाट्या"), ["@Mom कोणतं? तूप\n" + gap_how("तूप")])
         self.assertEqual(b.fills, {})
 
     def test_pakka_with_gaps_open_lists_them(self):
         b = Book("बेसन लाडू", TAPE, DRAFT)
-        self.assertEqual(b.on_mom("पक्का"), ["@Mom page pakka? 1 open: तूप"])
+        self.assertEqual(b.on_mom("पक्का"), ["@Mom page pakka? 1 open: तूप\n" + YES_HOW])
         b.on_mom("ho")
         self.assertIn("-# open: nobody measured it", b.page)
 
@@ -85,6 +86,49 @@ class Flow(unittest.TestCase):
     def test_name_comes_from_the_tape(self):
         draft = {"ingredients": [{"name_mr": "लोणी", "name_at": 4, "name_en": "butter", "quantity": [5, 5]}]}
         self.assertTrue(Book("x", TAPE, draft).review()[0].count("-# तूप ·"))
+
+
+# Switch's own mention pattern (clients/mentions.py, 0.31.0): an @ followed
+# straight away by name characters.
+SWITCH_MENTION = re.compile(r"@([A-Za-z0-9._-]+)")
+
+
+class MomKnowsHowToAnswer(unittest.TestCase):
+    """Only a message that tags Pothi reaches it: this server runs without
+    "follow the conversation", and a Discord Reply carries no mention. So every
+    question says how to answer, and Pothi never writes a real mention of an
+    agent, which Switch would route to it or refuse in the room."""
+
+    def every_message(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        msgs = b.review()
+        msgs += b.on_mom("@Pothi अर्धी तूप वाटी")  # the name at neither end: कोणतं?
+        msgs += b.on_tape("relayed by aryan: तूप अर्धी वाटी")
+        msgs += b.on_mom("@Pothi अर्धी वाटी तूप")
+        msgs += b.on_mom("पक्का")
+        b.on_mom("हो")
+        return msgs + [b.page]
+
+    def test_every_question_says_how_to_answer(self):
+        asks = [m for m in self.every_message() if m.startswith("@Mom ")]
+        self.assertEqual(len(asks), 5)
+        for m in asks:
+            self.assertIn(f"\n-# उत्तर: {TAG} ", m)
+
+    def test_pothi_never_tags_an_agent(self):
+        for m in self.every_message():
+            self.assertFalse({t.lower() for t in SWITCH_MENTION.findall(m)} & {"pothi", "tape", "lekhak"}, m)
+        self.assertIsNone(SWITCH_MENTION.match(TAG))
+
+    def test_the_name_may_come_last(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        self.assertEqual(b.on_mom("@Pothi अर्धी वाटी तूप"), ["**अर्धी वाटी** — Mom", "@Mom page pakka?\n" + YES_HOW])
+        self.assertEqual(b.fills[1], ("अर्धी वाटी", "Mom"))
+
+    def test_a_name_in_the_middle_is_asked_about(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        self.assertEqual(b.on_mom("@Pothi अर्धी तूप वाटी"), ["@Mom कोणतं? तूप\n" + gap_how("तूप")])
+        self.assertEqual(b.fills, {})
 
 
 class PageInTheRoom(unittest.TestCase):

@@ -21,6 +21,7 @@ from pathlib import Path
 from unittest import mock
 
 from jaisa import agents
+from jaisa.pothi import YES_HOW, gap_how
 from jaisa.switch import SWITCH_NAME
 from tests.test_pothi import DRAFT, TAPE
 
@@ -146,10 +147,10 @@ class Chain(unittest.TestCase):
         self.run_agent("Tape")
         self.assertEqual(self.room.posts[-1], ("Tape", "@pothi draft ready: draft-1"))
         self.run_agent("Pothi")
-        self.assertEqual(self.room.posts[-1], ("Pothi", "@Mom तूप?"))
+        self.assertEqual(self.room.posts[-1], ("Pothi", "@Mom तूप?\n" + gap_how("तूप")))
         # each run restarts Pothi, so this also checks that its state survives a restart
         self.to("Pothi", frame("Mom", "user", "@Pothi तूप अर्धी वाटी, स्टीलची", sender="@mom:discord"))
-        self.assertEqual(self.room.posts[-1], ("Pothi", "@Mom page pakka?"))
+        self.assertEqual(self.room.posts[-1], ("Pothi", "@Mom page pakka?\n" + YES_HOW))
         self.assertIsNone(self.doc("page-1"))
         before = len(self.room.posts)
         self.to("Pothi", frame("Mom", "user", "@Pothi हो", sender="@mom:discord"))
@@ -227,7 +228,23 @@ class Security(Chain):
         self.run_agent("Tape")
         self.run_agent("Pothi")
         self.to("Pothi", frame("Mom", "user", "@Pothi तूप अर्धी वाटी", sender="@mom:discord"))
-        self.assertEqual(self.room.posts[-1], ("Pothi", "@Mom page pakka?"))
+        self.assertEqual(self.room.posts[-1], ("Pothi", "@Mom page pakka?\n" + YES_HOW))
+
+    def test_pothis_own_page_of_that_number_is_rewritten(self):
+        # make rehearse reuses tape-999, so Pothi's own page-999 may exist already
+        self.room.docs.append({"id": "old", "name": "page-1", "description": "", "content": "old", "created_by_agent_id": "id-pothi"})
+        self.reach_pakka()
+        self.to("Pothi", frame("Mom", "user", "@Pothi हो", sender="@mom:discord"))
+        [page] = [d for d in self.room.docs if d["name"] == "page-1"]
+        self.assertIn("**अर्धी वाटी** — Mom", page["content"])
+        self.assertTrue(self.room.posts[-1][1].endswith("-# kept in Switch as room document page-1"))
+
+    def test_someone_elses_document_of_that_name_is_never_touched(self):
+        self.room.docs.append({"id": "x", "name": "page-1", "description": "", "content": "not Pothi's", "created_by_agent_id": "id-tape"})
+        self.reach_pakka()
+        with self.assertLogs("jaisa", "ERROR"):
+            self.to("Pothi", frame("Mom", "user", "@Pothi हो", sender="@mom:discord"))
+        self.assertEqual([d["content"] for d in self.room.docs if d["name"] == "page-1"], ["not Pothi's"])
 
     # 5 BOLA
     def test_5_forged_draft_is_refused_by_tape_and_by_pothi(self):

@@ -2,7 +2,7 @@ COMPOSE = docker compose -f deploy/standalone-docker-compose.yml --env-file depl
 PY ?= python3
 AGENTS_ENV = set -a; . deploy/agents.env; set +a;
 
-.PHONY: env up down ps logs test register senders smoke ask tape lekhak pothi s8 security check ledger doctor
+.PHONY: env up down ps logs test register senders smoke rehearse ask tape lekhak pothi s8 security check ledger doctor
 
 env:            ## fresh secrets in deploy/.env (asks for the admin password)
 	deploy/init-env.sh
@@ -43,6 +43,9 @@ senders:        ## the agents' Switch sender ids, for deploy/agents.env (read-on
 
 smoke:          ## live: as Tape (stop make tape first), send a TEST transcript to the real Lekhak and check its draft
 	$(AGENTS_ENV) $(PY) -m jaisa.probe smoke
+
+rehearse:       ## live: make smoke, then hand the TEST draft to the real Pothi, so Mom can practise in #dev
+	$(AGENTS_ENV) $(PY) -m jaisa.probe rehearse
 
 ask:            ## live: make ask AS=Lekhak TO=pothi SAY='ghee 1 cup' (stop that agent first); prints Switch's verdict
 	$(AGENTS_ENV) $(PY) -m jaisa.probe ask $(AS) $(TO) $(SAY)

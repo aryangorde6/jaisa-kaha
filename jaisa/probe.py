@@ -8,6 +8,12 @@ that agent's own process first: Switch keeps one connection per agent.
       Pothi's checker on it. Deletes tape-999 after. draft-999 stays, because
       only Lekhak may delete it.
 
+  python -m jaisa.probe rehearse
+      The same, then hands draft-999 to the real Pothi, as Tape does. Pothi's
+      review of the TEST transcript appears in the room, and Mom answers it on
+      her phone: a dress rehearsal in #dev before her own recipe. tape-999
+      stays, since Pothi reads it; the next smoke or rehearse replaces it.
+
   python -m jaisa.probe ask <Agent> <target> <words...>
       Sends one targeted message as <Agent> and prints what Switch says about
       the target: live, offline, or not_permitted. For the video's "the model
@@ -27,7 +33,7 @@ from .switch import Agent, agent_ids
 SMOKE = "999"
 
 
-async def smoke() -> bool:
+async def smoke(to_pothi=False) -> bool:
     from tests.test_pothi import TAPE  # the project's own test transcript, not Mom's
 
     me, ids = Agent("Tape"), agent_ids()
@@ -66,16 +72,19 @@ async def smoke() -> bool:
                 statuses = [line.status for line in r.lines]
                 print("  Pothi's checker:", {s: statuses.count(s) for s in sorted(set(statuses))}, "| missed:", len(r.missed))
                 ok = True
+                if to_pothi:
+                    await me.op("send_targeted_message", body=f"draft ready: draft-{SMOKE}", target_names=["pothi"])
+                    print(f"sent @pothi draft ready: draft-{SMOKE}. Pothi's review is in the room: Mom answers it on her phone")
             return
 
     try:
         await asyncio.wait_for(run(), 180)
     finally:
-        t = await agents.find_doc(me, f"tape-{SMOKE}")
+        t = None if to_pothi and ok else await agents.find_doc(me, f"tape-{SMOKE}")
         if t:
             await me.op("delete_room_document", document_id=t["id"])
             print(f"deleted tape-{SMOKE}")
-    print("make smoke:", "ok" if ok else "FAILED")
+    print("make rehearse:" if to_pothi else "make smoke:", "ok" if ok else "FAILED")
     return ok
 
 
@@ -103,8 +112,8 @@ def main():
     if not agents.ROOM:
         raise SystemExit("load deploy/agents.env first (the make targets do)")
     args = sys.argv[1:]
-    if args == ["smoke"]:
-        sys.exit(0 if asyncio.run(smoke()) else 1)
+    if args in (["smoke"], ["rehearse"]):
+        sys.exit(0 if asyncio.run(smoke(to_pothi=args == ["rehearse"])) else 1)
     if len(args) >= 4 and args[0] == "ask" and args[1] in agents.AGENT_SENDERS:
         asyncio.run(ask(args[1], args[2], " ".join(args[3:])))
         return
