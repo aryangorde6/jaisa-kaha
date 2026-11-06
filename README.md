@@ -53,7 +53,7 @@ sequenceDiagram
     P->>M: review in the room, gaps only: "@Mom तूप?"
     M->>P: "@Pothi तूप अर्धी वाटी, स्टीलची"
     P->>M: "page pakka?"
-    M->>P: "हो"
+    M->>P: "@Pothi हो"
     P->>S: creates page-N (only Pothi can change it)
     P->>M: posts the same page in the room, to read on a phone
     Note over A,P: "@Pothi ghee 1 cup" from Aryan, or from Lekhak:<br/>Switch refuses it under Pothi's name, and Pothi's code never receives it.
