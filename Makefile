@@ -2,12 +2,15 @@ COMPOSE = docker compose -f deploy/standalone-docker-compose.yml --env-file depl
 PY ?= python3
 AGENTS_ENV = set -a; . deploy/agents.env; set +a;
 
-.PHONY: env up down ps logs test register senders smoke rehearse ask tape lekhak pothi s8 security check ledger doctor
+.PHONY: env compose up down ps logs test register senders smoke rehearse ask tape lekhak pothi s8 security check ledger doctor
 
 env:            ## fresh secrets in deploy/.env (asks for the admin password)
 	deploy/init-env.sh
 
-up:             ## start Switch (Gateway on http://localhost:3200)
+compose:        ## Switch's own 0.31.0 Compose file, fetched from GHCR by digest (sha256 checked)
+	deploy/fetch-compose.sh
+
+up: compose     ## start Switch (Gateway on http://localhost:3200)
 	$(COMPOSE) up -d
 	@echo "waiting for the API..."; for i in $$(seq 60); do curl -fsS http://127.0.0.1:8100/health >/dev/null 2>&1 && { echo "Switch is up"; exit 0; }; sleep 1; done; echo "Switch didn't come up in 60 s"; exit 1
 

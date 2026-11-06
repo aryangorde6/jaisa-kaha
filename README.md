@@ -137,7 +137,7 @@ Python 3.12+ standard library only, plus `ffmpeg` for the audio tests.
 
 Needs Docker, an AWS account with Transcribe and Bedrock in `ap-south-1`, a Discord server, and Python with `httpx` and `websockets`.
 
-1. `make env` makes fresh secrets in `deploy/.env` (mode 600) and asks for the Gateway admin password without echoing it. `make up` starts Switch 0.31.0, with every port on `127.0.0.1`.
+1. `make env` makes fresh secrets in `deploy/.env` (mode 600) and asks for the Gateway admin password without echoing it. `make up` fetches Switch's own 0.31.0 Compose file from GHCR by its digest (`make compose`; the sha256 is checked, and the file isn't copied into this repo), then starts Switch 0.31.0, with every port on `127.0.0.1`.
 2. In the Gateway (http://localhost:3200):
    - register your Discord bot under Apps (Server Members and Message Content intents);
    - create the users `mom` and `aryan`.

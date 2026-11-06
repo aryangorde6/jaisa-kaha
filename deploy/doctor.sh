@@ -7,14 +7,17 @@ missing=0
 ok()   { echo "ok      $1"; }
 todo() { echo "TODO    $1"; missing=$((missing + 1)); }
 step() { if eval "$2" >/dev/null 2>&1; then ok "$1"; else todo "$1${3:+ ($3)}"; fi; }
+mode() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }  # GNU, then BSD (macOS)
 
+COMPOSE_SHA=$(grep -oE '^DIGEST=[0-9a-f]{64}' deploy/fetch-compose.sh | cut -d= -f2)
+step "Switch's 0.31.0 Compose file (sha256 pinned)" "[ \"\$( (sha256sum deploy/standalone-docker-compose.yml || shasum -a 256 deploy/standalone-docker-compose.yml) | cut -d' ' -f1)\" = $COMPOSE_SHA ]" "make compose"
 step "Switch API healthy on 127.0.0.1:8100" "curl -fsS http://127.0.0.1:8100/health" "make up"
 step "Gateway answers on 127.0.0.1:3200" "curl -fsS -o /dev/null http://127.0.0.1:3200/" "make up"
 step "ffmpeg and ffprobe installed" "command -v ffmpeg && command -v ffprobe"
 step "python has httpx and websockets" "$PY -c 'import httpx, websockets'" "PY=… or a venv"
 step "AWS profile hackathon works" "AWS_PROFILE=hackathon aws sts get-caller-identity"
 for name in Tape Lekhak Pothi; do
-    step "$name registered (keys/$name.json, mode 600)" "[ \"\$(stat -c %a keys/$name.json)\" = 600 ]" "make register NAME=$name"
+    step "$name registered (keys/$name.json, mode 600)" "[ \"\$(mode keys/$name.json)\" = 600 ]" "make register NAME=$name"
 done
 if [ -f deploy/agents.env ]; then
     set -a; . deploy/agents.env; set +a
