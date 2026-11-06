@@ -162,7 +162,7 @@ The 20-point web checklist, mapped onto this build:
 - **Switch's side:** checked in its 0.31.0 image: bcrypt passwords; an HttpOnly, SameSite=Lax session cookie; no CORS; every port bound to `127.0.0.1`.
   - Sign-in has no rate limit, so the Gateway is never exposed to the internet.
 
-`make security` runs before every push. It covers secrets files, key patterns, every value in `deploy/.env`, string-built SQL, family audio and data, and Switch's ports.
+`make security` runs before every push. It covers secrets files, key patterns, every value in `deploy/.env`, string-built SQL, family audio and data, and Switch's ports. It runs on Linux and macOS. A check that can't run on your machine (no Docker, say) prints `skip`, never `ok`.
 
 ## Honesty rules
 
