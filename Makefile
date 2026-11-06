@@ -2,7 +2,7 @@ COMPOSE = docker compose -f deploy/standalone-docker-compose.yml --env-file depl
 PY ?= python3
 AGENTS_ENV = set -a; . deploy/agents.env; set +a;
 
-.PHONY: env compose up down ps logs test register senders smoke rehearse ask tape lekhak pothi s8 security check ledger doctor
+.PHONY: env compose up down ps logs rule-log test register senders smoke rehearse ask tape lekhak pothi s8 security check ledger doctor
 
 env:            ## fresh secrets in deploy/.env (asks for the admin password)
 	deploy/init-env.sh
@@ -22,6 +22,9 @@ ps:
 
 logs:
 	$(COMPOSE) logs --tail 80
+
+rule-log:       ## who set each agent's rule, from Switch's own log (read-only): make rule-log [AGENT=pothi BY=Mom]
+	AGENT=$(AGENT) BY=$(BY) PY=$(PY) deploy/rule-log.sh
 
 test:           ## every test, no network (the security tests are in tests/test_agents.py)
 	$(PY) -m unittest discover -s tests -t . -v

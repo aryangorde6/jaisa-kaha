@@ -87,7 +87,7 @@ Every arrow between people and agents goes through Switch, which checks the addr
 
 | Switch enforces | Our code enforces (and the test that proves it) | Neither, stated plainly |
 |---|---|---|
-| Who may address Pothi: Mom and Tape only | Pothi takes a number only from the tape's own words or from Mom's sender id (`test_5_yes_from_aryan…`, `test_5_display_name_spoof…`) | The server's admin could rewrite Pothi's rule. That's why Mom holds the admin password |
+| Who may address Pothi: Mom and Tape only | Pothi takes a number only from the tape's own words or from Mom's sender id (`test_5_yes_from_aryan…`, `test_5_display_name_spoof…`) | The server's admin could rewrite Pothi's rule. That's why Mom holds the admin password. Switch also logs every rule change and who made it, owner or admin (`gateway/agents.py:721`): `make rule-log AGENT=pothi BY=Mom` lists them, and fails if anyone but Mom changed Pothi's rule after her |
 | The refusal text, under Pothi's name | Tape passes Pothi exactly two fixed lines, never model text (`test_tape_passes_only_the_fixed_format`) | Whoever runs the machine (shell, database, `SECRET_KEYS`) can override anything |
 | Only Pothi can update Pothi's page | Every quantity must cite word indices into Tape's transcript; a typed amount is struck (`test_injected_amount_is_struck…`, `test_typed_amount_is_struck`) | Tape is mine, so a forged transcript would only show by listening. That's why every line carries its second in the voice note |
 | Every refusal is kept in room history | The lexicon scan flags amounts Lekhak skipped (`test_lexicon_scan_flags_what_lekhak_skipped`) | Switch Rooms adds no prompt-injection protection. Lekhak's text never reaches Pothi as instructions |
@@ -126,7 +126,7 @@ Qwen also turned *पाव किलो* (a quarter kilo) into "1 kg". With Lek
 make check
 ```
 
-That runs 80 tests, then the pre-push scan:
+That runs 86 tests, then the pre-push scan:
 - Pothi's checker and the page;
 - the whole chain in a fake Switch room: voice note → tape → draft → review → Mom's fill → `हो` → page;
 - a test for each security check below.
@@ -142,7 +142,7 @@ Needs Docker, an AWS account with Transcribe and Bedrock in `ap-south-1`, a Disc
    - register your Discord bot under Apps (Server Members and Message Content intents);
    - create the users `mom` and `aryan`.
 3. Signed in as `aryan`, make a registration key. `make register NAME=Tape`, then `make register NAME=Lekhak`. On each agent's page, set its rule: Tape admits your Discord account and lekhak; Lekhak admits only tape.
-4. **Mom**, signed in as `mom`, makes her own key. She runs `make register NAME=Pothi` and types it. Then, on Pothi's page, she sets the rule: restricted, users [her own Discord account], agents [tape].
+4. **Mom**, signed in as `mom`, makes her own key. She runs `make register NAME=Pothi` and types it. Then, on Pothi's page, she sets the rule: restricted, users [her own Discord account], agents [tape]. `make rule-log AGENT=pothi BY=Mom` then shows Switch's own record of who set it.
 5. Copy `deploy/agents.env.example` to `deploy/agents.env`. Fill in the room id and the S3 bucket. `make senders` prints the agents' Switch sender ids to paste in, and lists the people Switch has seen: pick your own sender id, Mom's, and Mom's username (Pothi addresses her by it). Agents are told apart by sender id because Switch's live events don't mark a sender as an agent.
 6. `make tape`, `make lekhak`, `make pothi`, each in its own terminal.
 7. In the channel: `!invite-agent @Tape`, `@Lekhak`, `@Pothi`. Then post a voice note and `@Tape <dish>`.
