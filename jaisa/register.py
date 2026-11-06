@@ -11,7 +11,7 @@ import sys
 from .switch import register
 
 DESCRIPTIONS = {
-    "Tape": "Aryan's. Transcribes Dadi's voice notes (Marathi) and passes two fixed lines to Pothi.",
+    "Tape": "Aryan's. Transcribes Mom's recipe voice notes (Marathi) and passes two fixed lines to Pothi.",
     "Lekhak": "Aryan's. Drafts the recipe as word citations into Tape's transcript. Never types a quantity.",
     "Pothi": "Mom's. Checks every quantity against the tape, asks Mom for the gaps, writes the page once.",
 }

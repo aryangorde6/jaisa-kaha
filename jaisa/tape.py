@@ -1,4 +1,4 @@
-"""Tape's work: a voice note in, Dadi's words out, each with its second.
+"""Tape's work: a voice note in, Mom's words out, each with its second.
 
 AWS Transcribe batch, mr-IN (Marathi), through the aws CLI on profile
 `hackathon`. The audio and the transcript go to one private bucket

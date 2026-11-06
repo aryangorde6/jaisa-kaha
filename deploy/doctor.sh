@@ -32,7 +32,7 @@ if [ -f deploy/agents.env ]; then
 else
     todo "deploy/agents.env (copy deploy/agents.env.example)"
 fi
-step "prompts committed (frozen before the first real recording)" "git ls-files --error-unmatch prompts/baseline-v1.txt prompts/lekhak-v1.txt && git diff --quiet HEAD -- prompts/" "git commit"
+step "prompts committed (frozen before the first real recording)" "git ls-files --error-unmatch prompts/baseline-v2.txt prompts/lekhak-v1.txt && git diff --quiet HEAD -- prompts/" "git commit"
 
 echo
 [ $missing -eq 0 ] && echo "make doctor: ready to go live" || echo "make doctor: $missing to do"

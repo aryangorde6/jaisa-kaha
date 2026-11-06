@@ -1,7 +1,7 @@
 import unittest
 
 from jaisa.check import Word
-from jaisa.pothi import Book, esc
+from jaisa.pothi import CHUNK, Book, esc, page_messages
 from jaisa.tape import from_doc, media_format, mmss, to_doc, words
 
 SAID = "बेसन पाव किलो घ्यायचं तूप अंदाजाने घालायचं साखर दोन वाट्या आणि वेलची चिमूटभर"
@@ -50,7 +50,7 @@ class Flow(unittest.TestCase):
         b.on_mom("@Pothi तूप अर्धी वाटी")
         self.assertEqual(b.fills[1], ("अर्धी वाटी", "Mom"))
 
-    def test_mom_cannot_overwrite_dadis_words(self):
+    def test_a_typed_fill_cannot_overwrite_the_tape(self):
         b = Book("बेसन लाडू", TAPE, DRAFT)
         self.assertEqual(b.on_mom("@Pothi साखर तीन वाट्या"), ["@Mom कोणतं? तूप"])
         self.assertEqual(b.fills, {})
@@ -85,6 +85,34 @@ class Flow(unittest.TestCase):
     def test_name_comes_from_the_tape(self):
         draft = {"ingredients": [{"name_mr": "लोणी", "name_at": 4, "name_en": "butter", "quantity": [5, 5]}]}
         self.assertTrue(Book("x", TAPE, draft).review()[0].count("-# तूप ·"))
+
+
+class PageInTheRoom(unittest.TestCase):
+    """The page is posted in the room as well, since no phone can open the document."""
+
+    def test_a_short_page_is_one_message(self):
+        b = Book("बेसन लाडू", TAPE, DRAFT)
+        b.review()
+        b.on_mom("@Pothi तूप अर्धी वाटी, स्टीलची")
+        b.on_mom("हो")
+        self.assertEqual(page_messages(b.page), [b.page])
+
+    def test_a_long_page_is_cut_between_ingredients(self):
+        blocks = [f"साखर {i}\n> {'साखर दोन वाट्या ' * 6}\n-# sugar · Mom, 01:{i:02d}" for i in range(60)]
+        page = "\n\n".join(blocks)
+        msgs = page_messages(page)
+        self.assertGreater(len(msgs), 1)
+        self.assertTrue(all(len(m) <= CHUNK for m in msgs))
+        self.assertEqual("\n\n".join(msgs), page)
+        starts = {blk.split("\n")[0] for blk in blocks}
+        self.assertTrue(all(m.split("\n")[0] in starts for m in msgs))
+
+    def test_a_line_longer_than_a_message_is_cut_at_spaces(self):
+        line = " ".join(f"शब्द{i}" for i in range(900))
+        msgs = page_messages(line)
+        self.assertGreater(len(msgs), 1)
+        self.assertTrue(all(len(m) <= CHUNK for m in msgs))
+        self.assertEqual(" ".join(msgs), line)
 
 
 class Tape(unittest.TestCase):

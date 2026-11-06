@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 from . import budget, lekhak, tape as tapelib
-from .pothi import Book
+from .pothi import Book, page_messages
 from .switch import SWITCH_NAME, Agent, agent_ids
 
 ROOM = os.environ.get("JAISA_ROOM", "")
@@ -205,7 +205,7 @@ async def tape_transcribe(me, att, dish):
     await me.op(
         "create_room_document",
         name=name,
-        description=f"{dish}: Dadi's words, as Tape heard them",
+        description=f"{dish}: Mom's words, as Tape heard them",
         instructions="One word per line: [index] seconds word. Cite word indexes; never retype the words.",
         content=tapelib.to_doc(words),
     )
@@ -355,11 +355,17 @@ async def run_pothi():
                 "create_room_document",
                 name=f"page-{n}",
                 description=f"{book.dish}: approved by Mom",
-                instructions="Every amount here is Dadi's, on the tape, or Mom's. Read only.",
+                instructions="Every amount here is on the tape or typed by Mom. Read only.",
                 content=book.page,
             )
             written = True
             keep(f"pages/{ROOM}/page-{n}.md", book.page)  # for make ledger, per room as tapes are
+            save(n, book, written)  # before posting, so a failed post never writes the page twice
+            # The document is the record, but no phone can open it: !list-documents
+            # links to the Gateway, which listens on 127.0.0.1 only. So the family
+            # reads the page here, in the room, posted once.
+            for part in page_messages(f"{book.page}\n\n-# kept in Switch as room document page-{n}"):
+                await me.op("post_message", body=part)
         if book:
             save(n, book, written)
 

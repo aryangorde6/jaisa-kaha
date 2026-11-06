@@ -1,4 +1,4 @@
-"""Pothi's check: every quantity in Lekhak's draft must be Dadi's own words on the tape.
+"""Pothi's check: every quantity in Lekhak's draft must be Mom's own words on the tape.
 
 Lekhak never retypes a quantity. It cites a word range in Tape's transcript,
 and Pothi reads those words itself. The tape decides, not Lekhak's label:
@@ -7,7 +7,7 @@ and Pothi reads those words itself. The tape decides, not Lekhak's label:
 - Lekhak said nothing about the amount          -> "gap" ("not said")
 - a bad citation, or an amount typed by Lekhak  -> "struck"
 Then a lexicon scan flags quantity words on the tape that no line cites.
-Names and method steps are cited the same way, so the page shows Dadi's own
+Names and method steps are cited the same way, so the page shows Mom's own
 words wherever it can, and Lekhak's text only as a labelled English gloss.
 """
 
@@ -48,7 +48,7 @@ class Line:
 class Result:
     lines: list
     missed: list  # runs of Words that hold a quantity no line cites
-    steps: list = field(default_factory=list)  # lists of Words, Dadi's method
+    steps: list = field(default_factory=list)  # lists of Words, Mom's method
     bad_steps: int = 0
 
 

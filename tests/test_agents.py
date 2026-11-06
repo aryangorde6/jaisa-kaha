@@ -151,13 +151,19 @@ class Chain(unittest.TestCase):
         self.to("Pothi", frame("Mom", "user", "@Pothi तूप अर्धी वाटी, स्टीलची", sender="@mom:discord"))
         self.assertEqual(self.room.posts[-1], ("Pothi", "@Mom page pakka?"))
         self.assertIsNone(self.doc("page-1"))
+        before = len(self.room.posts)
         self.to("Pothi", frame("Mom", "user", "@Pothi हो", sender="@mom:discord"))
         page = self.doc("page-1")
         self.assertEqual(page["created_by_agent_id"], "id-pothi")
         self.assertIn("**अर्धी वाटी, स्टीलची** — Mom", page["content"])
         self.assertTrue(page["description"].startswith("बेसन लाडू"))
+        # the same page is posted in the room, because no phone can open the document
+        posted = self.room.posts[before:]
+        self.assertTrue(posted and all(who == "Pothi" for who, _ in posted))
+        self.assertEqual("\n\n".join(body for _, body in posted), page["content"] + "\n\n-# kept in Switch as room document page-1")
         self.to("Pothi", frame("Mom", "user", "@Pothi हो", sender="@mom:discord"))
         self.assertEqual([d["name"] for d in self.room.docs].count("page-1"), 1)
+        self.assertEqual(len(self.room.posts), before + len(posted))  # posted once, not again after a restart
         # the local copies for make ledger sit in this room's folder, nowhere else
         self.assertTrue((self.tmp / "tapes" / ROOM / "tape-1.txt").exists())
         self.assertTrue((self.tmp / "pages" / ROOM / "page-1.md").exists())

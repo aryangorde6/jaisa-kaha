@@ -3,7 +3,7 @@ that agent's own process first: Switch keeps one connection per agent.
 
   python -m jaisa.probe smoke
       As Tape: posts tape-999, a TEST transcript from tests/test_pothi.py (not
-      Dadi), addresses the real Lekhak and waits for its draft. Checks Lekhak's
+      Mom's), addresses the real Lekhak and waits for its draft. Checks Lekhak's
       answer by sender id, the draft's creator in Switch's records, and runs
       Pothi's checker on it. Deletes tape-999 after. draft-999 stays, because
       only Lekhak may delete it.
@@ -28,7 +28,7 @@ SMOKE = "999"
 
 
 async def smoke() -> bool:
-    from tests.test_pothi import TAPE  # the project's own test transcript, not Dadi
+    from tests.test_pothi import TAPE  # the project's own test transcript, not Mom's
 
     me, ids = Agent("Tape"), agent_ids()
     ok = False
@@ -41,7 +41,7 @@ async def smoke() -> bool:
         await me.op(
             "create_room_document",
             name=f"tape-{SMOKE}",
-            description="TEST, not Dadi: make smoke",
+            description="TEST, not Mom's: make smoke",
             instructions="A test transcript from the project's own tests. Deleted after the check.",
             content=tapelib.to_doc(TAPE),
         )

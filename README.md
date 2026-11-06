@@ -1,10 +1,10 @@
 # Jaisa Kaha
 
-**An AI scribe that refuses to make up Dadi's quantities.**
+**An AI scribe that refuses to make up Mom's quantities.**
 
-> Dadi's words need her tape. Mom's numbers need Mom. Our code checks the tape; Switch checks the account.
+> What Mom said comes from her tape. Anything more comes from her own account. Our code checks the tape; Switch checks the account.
 
-My grandmother cooks by feel and has never measured anything. When she says *तूप अंदाजाने* ("ghee, by feel"), an ordinary prompt writes "1 cup". Jaisa Kaha ("as she said it") keeps "by feel", asks Mom for the gap, and lets only Mom's own account fill it.
+My mother cooks by feel and has never measured anything. When she says *तूप अंदाजाने* ("ghee, by feel"), an ordinary prompt writes "1 cup". Jaisa Kaha ("as she said it") keeps "by feel", asks Mom about the gap, and lets only Mom's own account fill it. The page is for my sister, who is learning these recipes.
 
 Three agents share one Discord room through [Switch](https://github.com/sandbox-quantum). Two are mine. **One belongs to Mom, and Switch itself refuses everyone else who tries to give it a number: the AI, and me.**
 
@@ -22,7 +22,7 @@ Track 02, Personal or Creative Workflow · Flip the Switch hackathon, Nov 2026.
 | Mom | A person, on her own Discord account | `mom` (her password, her key, her rule) | — |
 | Me (Aryan) | A person, a plain user | `aryan` | — |
 
-Dadi isn't in the room. I record her in the kitchen, voice only, with her consent.
+I record Mom telling a recipe at home, voice only, with her consent, and post the voice note myself.
 
 ## One dish, end to end
 
@@ -55,12 +55,13 @@ sequenceDiagram
     P->>M: "page pakka?"
     M->>P: "हो"
     P->>S: creates page-N (only Pothi can change it)
+    P->>M: posts the same page in the room, to read on a phone
     Note over A,P: "@Pothi ghee 1 cup" from Aryan, or from Lekhak:<br/>Switch refuses it under Pothi's name, and Pothi's code never receives it.
 ```
 
 Every arrow between people and agents goes through Switch, which checks the addressee's rule before delivering anything.
 
-1. **Request.** I post Dadi's voice note in `#diwali-2026`: `@Tape besan ladoo`.
+1. **Request.** I post Mom's voice note in `#diwali-2026`: `@Tape besan ladoo`.
 2. **Hand-off.** Tape fetches the audio through Switch's media route, checks the bytes are audio (ffprobe, not the filename), transcribes it, and writes `tape-N`: every word, numbered, with its second in the voice note. Then `@Lekhak tape-N`.
 3. **Work.** Lekhak writes `draft-N` as JSON. **It never types a quantity.** Each amount is a word range in `tape-N`, such as `[5, 5]`.
 4. **Review.** Tape checks Switch's records to confirm Lekhak created `draft-N`, then tells Pothi. Pothi checks again, reads the cited words off the tape itself, and marks every line:
@@ -69,7 +70,7 @@ Every arrow between people and agents goes through Switch, which checks the addr
    - Lekhak typed an amount, or cited words that hold none → **struck**;
    - an amount on the tape that Lekhak didn't cite → **missed by Lekhak**.
 5. **Approval.** Mom answers in her own units: `@Pothi तूप अर्धी वाटी, स्टीलची` ("half a vaati, the steel one"). If she tells me aloud instead, I can relay it through Tape, but nothing relayed counts until Mom says `हो` (yes). When the gaps are done, Pothi asks `page pakka?`. Only Mom's `हो` releases it.
-6. **Result.** Pothi writes `page-N` once. Dadi's words appear as quotes with their second; Mom's numbers appear in bold, credited `— Mom`.
+6. **Result.** Pothi writes `page-N` once, as a Switch room document, and posts the same page in the room. The document is the record, but its link opens the Gateway, which never leaves this laptop, so the room copy is the one the family reads on their phones. What Mom said appears as quotes, each with its second on the tape; anything she typed appears in bold, credited `— Mom`.
 
 ## Why it stops working without Switch
 
@@ -95,16 +96,16 @@ Every arrow between people and agents goes through Switch, which checks the addr
 
 Every tape goes through two prompts on four models, all on Amazon Bedrock in Mumbai: Qwen3 235B, Mistral Large 3, Gemma 3 27B and DeepSeek V3.2. Both prompts are committed with their SHA-256 before the first real recording, so neither could be tuned to the result:
 
-- `prompts/baseline-v1.txt`: an ordinary "turn this into a recipe card" request;
+- `prompts/baseline-v2.txt`: an ordinary "turn my mother's recipe into a recipe card" request. It replaced `baseline-v1` (which said "grandmother's recipe") on Fri 6 Nov, before the first real recording;
 - `prompts/lekhak-v1.txt`: Lekhak's own prompt, scored by Pothi's checker.
 
 `ledger.md` holds the counts. The lines behind each count stay private, because they're my family's words.
 
 It counts the family room's tapes only (`JAISA_LEDGER_ROOM`). Test voice notes in `#dev` are kept in another folder and never reach it, and each saved run is tied to the SHA-256 of the words it was made from (`tests/test_ledger.py`, class `OneRoom`).
 
-*Pending: Dadi's real recordings (Thu–Fri).*
+*Pending: Mom's real recordings (Fri 6 Nov).*
 
-**On a test sentence I wrote (not Dadi's voice, not in the ledger),** the plain prompt turned "ghee, by feel" into a number on all four models:
+**On a test sentence I wrote (not a family recording, not in the ledger),** the plain prompt (`baseline-v1`) turned "ghee, by feel" into a number on all four models:
 
 | Model | What it wrote for तूप अंदाजाने |
 |---|---|
@@ -125,7 +126,7 @@ Qwen also turned *पाव किलो* (a quarter kilo) into "1 kg". With Lek
 make check
 ```
 
-That runs 70 tests, then the pre-push scan:
+That runs 73 tests, then the pre-push scan:
 - Pothi's checker and the page;
 - the whole chain in a fake Switch room: voice note → tape → draft → review → Mom's fill → `हो` → page;
 - a test for each security check below.
@@ -145,7 +146,7 @@ Needs Docker, an AWS account with Transcribe and Bedrock in `ap-south-1`, a Disc
 5. Copy `deploy/agents.env.example` to `deploy/agents.env`. Fill in the room id and the S3 bucket. `make senders` prints the agents' Switch sender ids to paste in, and lists the people Switch has seen: pick your own sender id, Mom's, and Mom's username (Pothi addresses her by it). Agents are told apart by sender id because Switch's live events don't mark a sender as an agent.
 6. `make tape`, `make lekhak`, `make pothi`, each in its own terminal.
 7. In the channel: `!invite-agent @Tape`, `@Lekhak`, `@Pothi`. Then post a voice note and `@Tape <dish>`.
-8. To check the live room without a recording: stop `make tape`, then `make smoke`. Acting as Tape, it sends a test transcript (from the tests, not Dadi) to the real Lekhak and checks the draft that comes back: Lekhak's sender id, the draft's creator in Switch's records, and Pothi's checker. `make ask AS=Lekhak TO=pothi SAY='ghee 1 cup'` (with Lekhak stopped) should show Switch refusing the model: Pothi declines in the room, and the call reports `not_permitted` (from Switch's source, `agent_core.py:2144`; *pending a live run, since Pothi is registered in Mom's session*).
+8. To check the live room without a recording: stop `make tape`, then `make smoke`. Acting as Tape, it sends a test transcript (from the tests, not Mom's) to the real Lekhak and checks the draft that comes back: Lekhak's sender id, the draft's creator in Switch's records, and Pothi's checker. `make ask AS=Lekhak TO=pothi SAY='ghee 1 cup'` (with Lekhak stopped) should show Switch refusing the model: Pothi declines in the room, and the call reports `not_permitted` (from Switch's source, `agent_core.py:2144`; *pending a live run, since Pothi is registered in Mom's session*).
 
 ## Security
 
@@ -165,10 +166,10 @@ The 20-point web checklist, mapped onto this build:
 
 ## Honesty rules
 
-- Dadi's and Mom's voices, Mom's messages, the refusals, the ledger numbers and the cousin's cooking are never simulated.
-- This year's faral was made before the event, so any shot of an action is redone with my hands and captioned *illustration*.
-- Mom and Dadi agreed to their voices being used, not their faces.
-- Dadi's audio lives in a private S3 bucket that deletes it after 30 days. It never goes in this repo.
+- Mom's voice, Mom's messages, the refusals, the ledger numbers and my sister's cooking are never simulated.
+- This year's faral was made before the event, so any shot of an action is redone with my hands and captioned *illustration*. Nobody in the family appears on camera, except as hands and only with their own yes.
+- Mom agreed to her voice being used, not her face.
+- Mom's audio lives in a private S3 bucket that deletes it after 30 days. It never goes in this repo.
 - The ledger publishes counts. A transcript goes public only with that family's consent.
 
 ## License

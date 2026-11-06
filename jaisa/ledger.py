@@ -1,4 +1,4 @@
-"""make ledger: what the models do with Dadi's words, measured, not claimed.
+"""make ledger: what the models do with Mom's words, measured, not claimed.
 
 python -m jaisa.ledger run      # every tape × prompt × model, once; saved runs are never redone
 python -m jaisa.ledger report   # counts -> ledger.md (public), evidence -> data/ledger/evidence.md (private)
@@ -9,7 +9,7 @@ JAISA_LEDGER_ROOM, the family room. Tests in #dev and the S8 takes sit under
 another room's folder and are never counted. A saved run is tied to the exact
 words it was made from (their SHA-256), so a tape-1 in a new room never reuses
 another room's tape-1. Two prompts, both frozen by hash:
-- baseline-v1: an ordinary "make a recipe card" request. For each amount Dadi
+- baseline-v2: an ordinary "make a recipe card" request. For each amount Mom
   gave by feel, a line naming that ingredient with a number in it counts as
   "turned into a number". The line is kept as evidence, for a person to check.
 - lekhak-v1: Lekhak's own prompt. Pothi's checker scores it, as in the room.
@@ -35,7 +35,7 @@ MODELS = [
     "google.gemma-3-27b-it",
     "deepseek.v3.2",
 ]
-PROMPTS = ["baseline-v1", "lekhak-v1"]
+PROMPTS = ["baseline-v2", "lekhak-v1"]  # baseline-v1 named a grandmother; kept for the S9 test sentence only
 # A number in an English recipe line: digits, fractions, or number words.
 _NUMBER = re.compile(r"\d|[½¼¾⅓⅔⅛]|\b(one|two|three|four|five|six|seven|eight|nine|ten|half|quarter|dozen)\b", re.I)
 
@@ -112,7 +112,7 @@ def judge(tape, words):
 
 
 def page_numbers_unquoted(page: str) -> list:
-    """Page lines holding a digit that are neither Dadi's quote ('>') nor a fill credited to Mom."""
+    """Page lines holding a digit that are neither a quote from the tape ('>') nor a fill credited to Mom."""
     out = []
     for ln in page.splitlines():
         if re.search(r"[0-9०-९]", ln) and not ln.startswith(">") and not ln.endswith("— Mom") and not ln.endswith("(relayed by Aryan)") and not ln.startswith("-# "):
@@ -138,7 +138,7 @@ def report():
                    "| Model | Plain prompt: by-feel amounts turned into numbers | Lekhak prompt: said / gap / struck / missed |", "|---|---|---|"]
         private += [f"## {tape} · {dish}", ""]
         for model in MODELS:
-            base = run_path(tape, "baseline-v1", model, words)
+            base = run_path(tape, "baseline-v2", model, words)
             careful = run_path(tape, "lekhak-v1", model, words)
             cell_b = cell_c = "not run"
             if base.exists():
@@ -157,7 +157,7 @@ def report():
         public.append("")
     pages = sorted((DATA / "pages" / room).glob("page-*.md"))
     unquoted = {p.stem: page_numbers_unquoted(p.read_text()) for p in pages}
-    public += ["## Pages", "", f"{len(pages)} pages written by Pothi. Numbers on them that are neither Dadi's quote nor Mom's: **{sum(len(v) for v in unquoted.values())}**.", ""]
+    public += ["## Pages", "", f"{len(pages)} pages written by Pothi. Numbers on them that are neither a quote from the tape nor Mom's fill: **{sum(len(v) for v in unquoted.values())}**.", ""]
     public += ["## Totals", "", f"{totals['by_feel']} of {totals['amounts']} amounts had no measured amount on the tape.", ""]
     public += [f"- {m}: plain prompt turned {totals['invented'][m]} into numbers; Lekhak prompt had {totals['struck'][m]} lines struck by Pothi" for m in MODELS]
     (ROOT / "ledger.md").write_text("\n".join(public) + "\n")

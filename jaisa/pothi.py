@@ -27,16 +27,36 @@ def _words(ws):
     return esc(" ".join(w.w for w in ws))
 
 
-def chunks(lines):
+def _fit(line):
+    """A line too long for one message, cut at spaces (Discord refuses over 2000)."""
+    out = []
+    while len(line) > CHUNK:
+        cut = line.rfind(" ", 0, CHUNK)
+        cut = cut if cut > 0 else CHUNK
+        out.append(line[:cut])
+        line = line[cut:].lstrip(" ")
+    return out + [line]
+
+
+def chunks(lines, sep="\n"):
     out, cur = [], ""
-    for line in lines:
-        if cur and len(cur) + len(line) + 1 > CHUNK:
+    for line in (piece for ln in lines for piece in _fit(ln)):
+        if cur and len(cur) + len(sep) + len(line) > CHUNK:
             out.append(cur)
             cur = ""
-        cur = f"{cur}\n{line}" if cur else line
+        cur = f"{cur}{sep}{line}" if cur else line
     if cur:
         out.append(cur)
     return out
+
+
+def page_messages(page: str) -> list:
+    """The page as chat messages, cut between ingredients where it can be and
+    never inside a line, so every quote and -# line stays whole on a phone."""
+    blocks = []
+    for block in page.split("\n\n"):
+        blocks += [block] if len(block) <= CHUNK else chunks(block.split("\n"))
+    return chunks(blocks, sep="\n\n")
 
 
 class Book:
@@ -144,16 +164,16 @@ class Book:
     # --- the page ---
 
     def render(self) -> str:
-        out = [f"**{esc(self.dish)}**", "-# Dadi's words from the tape, checked word by word by Pothi. Every amount is hers or Mom's. Mom approved this page.", ""]
+        out = [f"**{esc(self.dish)}**", "-# Mom's words from the tape, checked word by word by Pothi. Every amount is on the tape or typed by Mom. Mom approved this page.", ""]
         for n, ln in enumerate(self.lines):
             gloss = f"{esc(ln.name_en)} · " if ln.name_en else ""
             out.append(self.name(n))
             if ln.status == "said":
-                out += [f"> {_words(ln.quote)}", f"-# {gloss}Dadi, {mmss(ln.at)}"]
+                out += [f"> {_words(ln.quote)}", f"-# {gloss}tape, {mmss(ln.at)}"]
             elif ln.quote:
-                out += [f"> {_words(ln.quote)}", f'-# {gloss}Dadi, {mmss(ln.at)} · "{esc(ln.note)}"']
+                out += [f"> {_words(ln.quote)}", f'-# {gloss}tape, {mmss(ln.at)} · "{esc(ln.note)}"']
             else:
-                out.append(f"-# {gloss}Dadi didn't say how much")
+                out.append(f"-# {gloss}not said on the tape")
             if n in self.fills:
                 fill, who = self.fills[n]
                 out.append(f"**{esc(fill)}** — {who}")
@@ -166,7 +186,7 @@ class Book:
                 out += [f"> {_words(step)}", f"-# {mmss(step[0].t)}"]
             out.append("")
         if self.result.missed:
-            out.append("-# Lekhak skipped these amounts. They're Dadi's, on the tape:")
+            out.append("-# Lekhak skipped these amounts. They're Mom's, on the tape:")
             for run in self.result.missed:
                 out += [f"> {_words(run)}", f"-# {mmss(run[0].t)}"]
             out.append("")
