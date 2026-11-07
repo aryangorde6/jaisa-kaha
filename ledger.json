@@ -1,0 +1,36 @@
+{
+ "room": "62bee447",
+ "dishes": 1,
+ "amounts": 5,
+ "no_measure": 2,
+ "models": [
+  "qwen.qwen3-235b-a22b-2507-v1:0",
+  "mistral.mistral-large-3-675b-instruct",
+  "google.gemma-3-27b-it",
+  "deepseek.v3.2"
+ ],
+ "prompts": {
+  "baseline-v2": "165b1cffe872a2cc969ed410a24cb0eb9cd37bce945f0f578069f2969e0f6691",
+  "lekhak-v1": "bc343210e583f67e3bd318c48bff6d5866c3d7a558db2ad168486000b3df3689"
+ },
+ "plain_turned_into_numbers": {
+  "qwen.qwen3-235b-a22b-2507-v1:0": 2,
+  "mistral.mistral-large-3-675b-instruct": 2,
+  "google.gemma-3-27b-it": 1,
+  "deepseek.v3.2": 2
+ },
+ "plain_asked_about": {
+  "qwen.qwen3-235b-a22b-2507-v1:0": 2,
+  "mistral.mistral-large-3-675b-instruct": 2,
+  "google.gemma-3-27b-it": 2,
+  "deepseek.v3.2": 2
+ },
+ "lekhak_struck": {
+  "qwen.qwen3-235b-a22b-2507-v1:0": 0,
+  "mistral.mistral-large-3-675b-instruct": 0,
+  "google.gemma-3-27b-it": 0,
+  "deepseek.v3.2": 0
+ },
+ "pages": 1,
+ "page_numbers_not_hers": 0
+}

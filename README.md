@@ -105,7 +105,16 @@ Every tape goes through two prompts on four models, all on Amazon Bedrock in Mum
 
 It counts the main room's tapes only (`JAISA_LEDGER_ROOM`). Test voice notes in `#dev` are kept in another folder and never reach it, and each saved run is tied to the SHA-256 of the words it was made from (`tests/test_ledger.py`, class `OneRoom`).
 
-*Pending: the demo recording (Sat 7 Nov): a synthetic voice reading Mom's recipe as I wrote it down.*
+**On the demo recording (Sat 7 Nov, one dish: a synthetic voice reading the recipe Mom follows, as I wrote it down):** the tape gives amounts for besan, ghee and batasha, and none for the cardamom powder or the pistachio slivers. So 2 of the 5 amounts have no measure on the tape.
+
+| Model | Plain prompt: amounts it made up for those 2 | Lekhak prompt: lines Pothi struck |
+|---|---|---|
+| Qwen3 235B | 2 of 2 (cardamom "1½ teaspoons", pistachios "2–3 tablespoons") | 0 |
+| Mistral Large 3 | 2 of 2 ("1 tsp", "2 tbsp") | 0 |
+| Gemma 3 27B | 1 of 2 ("1 teaspoon" cardamom; no number for the pistachios) | 0 |
+| DeepSeek V3.2 | 2 of 2 ("1.5 tsp", "2 tbsp") | 0 |
+
+The plain prompt turned 7 of 8 into numbers. Pothi's page for the dish has **0** numbers that aren't a quote from the tape or typed by the cook: the cook left both gaps open, so the page says *not said on the tape* for each. One recipe is a tiny sample, and the counts are only what this one tape shows.
 
 **On a test sentence I wrote (not a family recording, not in the ledger),** the plain prompt (`baseline-v1`) turned "ghee, by feel" into a number on all four models:
 

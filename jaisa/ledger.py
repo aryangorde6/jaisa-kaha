@@ -161,7 +161,7 @@ def report():
         public.append("")
     pages = sorted((DATA / "pages" / room).glob("page-*.md"))
     unquoted = {p.stem: page_numbers_unquoted(p.read_text()) for p in pages}
-    public += ["## Pages", "", f"{len(pages)} pages written by Pothi. Numbers on them that are neither a quote from the tape nor Mom's fill: **{sum(len(v) for v in unquoted.values())}**.", ""]
+    public += ["## Pages", "", f"{len(pages)} pages written by Pothi. Numbers on them that are neither a quote from the tape nor {COOK}'s fill: **{sum(len(v) for v in unquoted.values())}**.", ""]
     public += ["## Totals", "", f"{totals['by_feel']} of {totals['amounts']} amounts had no measured amount on the tape.", ""]
     public += [f"- {m}: plain prompt turned {totals['invented'][m]} into numbers; Lekhak prompt had {totals['struck'][m]} lines struck by Pothi" for m in MODELS]
     (ROOT / "ledger.md").write_text("\n".join(public) + "\n")
