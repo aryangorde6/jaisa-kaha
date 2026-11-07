@@ -181,7 +181,7 @@ The 20-point web checklist, mapped onto this build:
 - Mom's voice isn't in the video, and no copy of it is: she couldn't record this week. The demo's voice note and the narration are one synthetic voice, Chatterbox TTS's built-in voice (no reference recording, so not a real person's). The voice note is labelled *synthetic voice* on screen; its words are the recipe she follows as I wrote it down: the amounts exactly as the video's description gives them (she uses them as given), nothing added; the three method lines are in my words. Chatterbox has no Marathi, so the Marathi is read by its Hindi model, and Tape hears it through the same Transcribe `mr-IN` as any voice note.
 - The cook's messages in the demo are typed by me on my second account, labelled on screen. Switch treats that account as a separate person; it is still me.
 - This year's faral was made before the event, so any shot of an action is redone with my hands and captioned *illustration*. Nobody in the family appears on camera, except as hands and only with their own yes.
-- Two shots in the video, the first three seconds and the ten at 2:12, are a stock clip of someone else's hands making besan ladoo, labelled *stock footage* on screen and credited below. They illustrate; they don't show anyone cooking from a Jaisa Kaha page. Nothing else in the video is stock.
+- Two shots in the video, the first three seconds and the nine at 2:13, are a stock clip of someone else's hands making besan ladoo, labelled *stock footage* on screen and credited below. They illustrate; they don't show anyone cooking from a Jaisa Kaha page. Nothing else in the video is stock.
 - Voice notes live in a private S3 bucket that deletes them after 30 days. They never go in this repo.
 - The ledger publishes counts. A transcript goes public only with that family's consent.
 
@@ -189,7 +189,7 @@ The 20-point web checklist, mapped onto this build:
 
 - The demo's recipe: "1 Kilo Besan Ladoo Recipe" by **MadhurasRecipe Marathi** (https://youtu.be/TTYss69lNuU), the video Mom follows; the voice note's amounts are from its description.
 - Narration and the demo voice note: **Chatterbox TTS** by Resemble AI (MIT), its built-in voice; the Marathi voice note through Chatterbox Multilingual in the same voice.
-- Video, the two shots labelled stock footage (0:00 and 2:12): "Making Besan Ladoo Indian Sweet Dessert" by **ARGA** on Pexels (https://www.pexels.com/video/making-besan-ladoo-indian-sweet-dessert-40753165/), Pexels License.
+- Video, the two shots labelled stock footage (0:00 and 2:13): "Making Besan Ladoo Indian Sweet Dessert" by **ARGA** on Pexels (https://www.pexels.com/video/making-besan-ladoo-indian-sweet-dessert-40753165/), Pexels License.
 - Video music: "Immersed" by **Kevin MacLeod** (incompetech.com), licensed under Creative Commons: By Attribution 4.0 (http://creativecommons.org/licenses/by/4.0/).
 
 ## License
