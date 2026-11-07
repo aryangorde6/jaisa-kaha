@@ -87,6 +87,11 @@ class Lexicon(unittest.TestCase):
         self.assertEqual(kind("चवीनुसार"), "vague")
         self.assertIsNone(kind("तूप"))
 
+    def test_hundreds_are_numbers(self):
+        for w in ("तीनशे", "अडीचशे", "शंभर", "हजार", "सहाशे"):
+            with self.subTest(w=w):
+                self.assertEqual(kind(w), "number")
+
     def test_only_a_plain_yes_is_yes(self):
         for t in ("हो", "@Pothi हो", "Ho", "हो.", "haan", "yes", "होय"):
             with self.subTest(t=t):
