@@ -190,6 +190,7 @@ The 20-point web checklist, mapped onto this build:
 - The demo's recipe: "1 Kilo Besan Ladoo Recipe" by **MadhurasRecipe Marathi** (https://youtu.be/TTYss69lNuU), the video Mom follows; the voice note's amounts are from its description.
 - Narration and the demo voice note: **Chatterbox TTS** by Resemble AI (MIT), its built-in voice; the Marathi voice note through Chatterbox Multilingual in the same voice.
 - Video, the two shots labelled stock footage (0:00 and 2:12): "Making Besan Ladoo Indian Sweet Dessert" by **ARGA** on Pexels (https://www.pexels.com/video/making-besan-ladoo-indian-sweet-dessert-40753165/), Pexels License.
+- Video music: "Immersed" by **Kevin MacLeod** (incompetech.com), licensed under Creative Commons: By Attribution 4.0 (http://creativecommons.org/licenses/by/4.0/).
 
 ## License
 
