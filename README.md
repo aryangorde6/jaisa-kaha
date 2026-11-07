@@ -4,11 +4,11 @@
 
 > What the cook said comes from the tape. Anything more comes from the cook's own account. Our code checks the tape; Switch checks the account.
 
-My mother cooks by feel and has never measured anything. When she says *तूप अंदाजाने* ("ghee, by feel"), an ordinary prompt writes "1 cup". Jaisa Kaha ("as she said it") keeps "by feel", asks the cook about the gap, and lets only the cook's own account fill it. I built it for Mom's recipes; the page is for my sister, who is learning them.
+For besan ladoo my mother follows a recipe video. It gives six cups of besan, one cup of ghee and 300 g of batasha, and no amount at all for the cardamom or the pistachios. An ordinary AI write-up fills those blanks with numbers nobody gave; on a test sentence I wrote, four models out of four turned *तूप अंदाजाने* ("ghee, by feel") into a number. Jaisa Kaha ("as she said it") writes down only the amounts that were said, keeps a gap where none was (or where the cook said "by feel"), asks the cook about it, and lets only the cook's own account fill it. I built it for Mom's recipes; the page is for my sister, who is learning them.
 
 Three agents share one Discord room through [Switch](https://github.com/sandbox-quantum). Two are mine. **One belongs to the cook, and Switch itself refuses everyone else who tries to give it a number: the AI, and me.**
 
-> **About the demo.** Mom couldn't sit for it: it's Diwali week and she's cooking. So in the video I play the cook. The voice note is my own voice, telling her besan ladoo the way she tells it, and the cook's seat is a second Discord account and Switch user of mine, named **Cook**. Both are labelled on screen. Switch checks accounts, not people, so everything below runs the same; what the demo can't show is a second real person in the room.
+> **About the demo.** Mom couldn't sit for it: it's Diwali week and she's cooking. So in the video I play the cook. The voice note is a synthetic voice (Chatterbox TTS's built-in voice, not a real person's) reading the besan ladoo recipe she follows (a Madhura's Recipe video, credited below) as I wrote it down, and the cook's seat is a second Discord account and Switch user of mine, named **Cook**. Both are labelled on screen. Switch checks accounts, not people, so everything below runs the same; what the demo can't show is a second real person in the room.
 
 Track 02, Personal or Creative Workflow · Flip the Switch hackathon, Nov 2026.
 
@@ -24,7 +24,7 @@ Track 02, Personal or Creative Workflow · Flip the Switch hackathon, Nov 2026.
 | The cook | A person, on their own Discord account: Mom at home; in the demo, my second account | `cook` (its password, its key, its rule) | — |
 | Me (Aryan) | A person, a plain user | `aryan` | — |
 
-I post the cook's voice note myself. At home that's Mom telling a recipe, voice only, with her consent; in the demo it's me telling hers.
+I post the cook's voice note myself. At home that's Mom telling a recipe, voice only, with her consent; in the demo it's a synthetic voice reading the recipe she follows, as I wrote it down.
 
 ## One dish, end to end
 
@@ -105,7 +105,7 @@ Every tape goes through two prompts on four models, all on Amazon Bedrock in Mum
 
 It counts the main room's tapes only (`JAISA_LEDGER_ROOM`). Test voice notes in `#dev` are kept in another folder and never reach it, and each saved run is tied to the SHA-256 of the words it was made from (`tests/test_ledger.py`, class `OneRoom`).
 
-*Pending: the demo recording (Sat 7 Nov), my voice telling Mom's recipe.*
+*Pending: the demo recording (Sat 7 Nov): a synthetic voice reading Mom's recipe as I wrote it down.*
 
 **On a test sentence I wrote (not a family recording, not in the ledger),** the plain prompt (`baseline-v1`) turned "ghee, by feel" into a number on all four models:
 
@@ -169,7 +169,7 @@ The 20-point web checklist, mapped onto this build:
 ## Honesty rules
 
 - The refusals and the ledger numbers are never simulated.
-- Mom's voice isn't in the video. She couldn't record this week, and no other voice, real or synthetic, stands in for hers. The voice note in the demo is mine, labelled on screen.
+- Mom's voice isn't in the video, and no copy of it is: she couldn't record this week. The demo's voice note and the narration are one synthetic voice, Chatterbox TTS's built-in voice (no reference recording, so not a real person's). The voice note is labelled *synthetic voice* on screen; its words are the recipe she follows as I wrote it down: the amounts exactly as the video's description gives them (she uses them as given), nothing added; the three method lines are in my words. Chatterbox has no Marathi, so the Marathi is read by its Hindi model, and Tape hears it through the same Transcribe `mr-IN` as any voice note.
 - The cook's messages in the demo are typed by me on my second account, labelled on screen. Switch treats that account as a separate person; it is still me.
 - This year's faral was made before the event, so any shot of an action is redone with my hands and captioned *illustration*. Nobody in the family appears on camera, except as hands and only with their own yes.
 - Two shots in the video, the first three seconds and the ten at 2:12, are a stock clip of someone else's hands making besan ladoo, labelled *stock footage* on screen and credited below. They illustrate; they don't show anyone cooking from a Jaisa Kaha page. Nothing else in the video is stock.
@@ -178,6 +178,8 @@ The 20-point web checklist, mapped onto this build:
 
 ## Credits
 
+- The demo's recipe: "1 Kilo Besan Ladoo Recipe" by **MadhurasRecipe Marathi** (https://youtu.be/TTYss69lNuU), the video Mom follows; the voice note's amounts are from its description.
+- Narration and the demo voice note: **Chatterbox TTS** by Resemble AI (MIT), its built-in voice; the Marathi voice note through Chatterbox Multilingual in the same voice.
 - Video, the two shots labelled stock footage (0:00 and 2:12): "Making Besan Ladoo Indian Sweet Dessert" by **ARGA** on Pexels (https://www.pexels.com/video/making-besan-ladoo-indian-sweet-dessert-40753165/), Pexels License.
 
 ## License
