@@ -128,12 +128,30 @@ def frame_line(name, frame) -> str:
 
 
 async def serve(me, filter, on_open, handle):
-    async for frame in me.events(filter, on_open=on_open):
-        log.info(frame_line(me.name, frame))
-        try:
-            await handle(frame)
-        except Exception:
-            log.exception("%s: a frame failed", me.name)
+    """Read frames on one task and handle them on another, one at a time, in order.
+    Switch's heartbeat pings come in on the same socket; a handler that waits on
+    Transcribe or a model for more than a few seconds must not stop them being
+    answered, or Switch expires the connection and the handler's next op gets 409."""
+    frames = asyncio.Queue()
+
+    async def worker():
+        while True:
+            frame = await frames.get()
+            try:
+                await handle(frame)
+            except Exception:
+                log.exception("%s: a frame failed", me.name)
+            finally:
+                frames.task_done()
+
+    task = asyncio.create_task(worker())
+    try:
+        async for frame in me.events(filter, on_open=on_open):
+            log.info(frame_line(me.name, frame))
+            frames.put_nowait(frame)
+        await frames.join()  # the stream ended (only in tests: the real one reconnects forever): finish what came in
+    finally:
+        task.cancel()
 
 
 def looks_audio(att) -> bool:

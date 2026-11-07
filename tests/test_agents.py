@@ -372,3 +372,30 @@ class Security(Chain):
         for line in logs.output:
             self.assertIsNone(DEVANAGARI.search(line), line)
             self.assertNotIn("Bearer", line)
+
+
+class Serve(unittest.TestCase):
+    def test_frames_keep_being_read_while_a_handler_waits(self):
+        """Switch's heartbeat pings come in on the same socket. On Sat 7 Nov a 20 s Transcribe
+        call inside Tape's handler left them unanswered, Switch expired the connection, and the
+        next op got 409. The reader must keep reading while a handler waits; handlers still run
+        one at a time, in order."""
+        read, done = [], []
+
+        class Me:
+            name = "Tape"
+
+            async def events(self, filter="addressed", on_open=None):
+                for i in range(5):
+                    read.append(len(done))  # how many frames were handled when this one was read
+                    yield {"event": "ping", "id": i}
+                    await asyncio.sleep(0)
+
+        async def handle(frame):
+            if frame["id"] == 0:
+                await asyncio.sleep(0.05)  # Transcribe, or a model call
+            done.append(frame["id"])
+
+        asyncio.run(agents.serve(Me(), "all", None, handle))
+        self.assertEqual(read, [0, 0, 0, 0, 0])
+        self.assertEqual(done, [0, 1, 2, 3, 4])
