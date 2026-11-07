@@ -2,6 +2,10 @@
 
 **An AI scribe that refuses to make up a cook's quantities.**
 
+[![Switch refuses my message to the cook's agent: "You're not permitted to direct messages to me in this room". Click to watch the 2:50 demo](docs/demo.jpg)](https://youtu.be/fnLvEMvr4IU)
+
+**[▶ Watch the 2:50 demo on YouTube](https://youtu.be/fnLvEMvr4IU)**: one dish end to end in Discord, then Switch refusing me and the AI when we answer for the cook.
+
 > What the cook said comes from the tape. Anything more comes from the cook's own account. Our code checks the tape; Switch checks the account.
 
 For besan ladoo my mother follows a recipe video. It gives six cups of besan, one cup of ghee and 300 g of batasha, and no amount at all for the cardamom or the pistachios. An ordinary AI write-up fills those blanks with numbers nobody gave; on a test sentence I wrote, four models out of four turned *तूप अंदाजाने* ("ghee, by feel") into a number. Jaisa Kaha ("as she said it") writes down only the amounts that were said, keeps a gap where none was (or where the cook said "by feel"), asks the cook about it, and lets only the cook's own account fill it. I built it for Mom's recipes; the page is for my sister, who is learning them.
